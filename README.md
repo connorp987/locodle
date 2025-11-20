@@ -30,16 +30,24 @@ A modern geo-location guessing game built with React and Fastify. Guess famous l
 ### Prerequisites
 - Node.js 18+ installed
 - npm or yarn package manager
+- Docker and Docker Compose installed
 
 ### Installation
 
-1. **Install Backend Dependencies**
+1. **Start PostgreSQL Database**
+```bash
+docker-compose up -d
+```
+This will start a PostgreSQL database on port 5432 and automatically initialize it with the schema and seed data.
+
+2. **Set up Backend Environment**
 ```bash
 cd backend
+cp .env.example .env
 npm install
 ```
 
-2. **Install Frontend Dependencies**
+3. **Install Frontend Dependencies**
 ```bash
 cd frontend
 npm install
@@ -63,6 +71,29 @@ The frontend will run on `http://localhost:3000`
 
 3. **Open your browser** and navigate to `http://localhost:3000`
 
+### Database Management
+
+**View database logs:**
+```bash
+docker-compose logs postgres
+```
+
+**Stop database:**
+```bash
+docker-compose down
+```
+
+**Reset database (delete all data):**
+```bash
+docker-compose down -v
+docker-compose up -d
+```
+
+**Connect to database:**
+```bash
+docker exec -it locodle-postgres psql -U locodle -d locodle
+```
+
 ## How to Play
 
 1. Look at the image and hints provided
@@ -74,10 +105,11 @@ The frontend will run on `http://localhost:3000`
 ## Game Mechanics
 
 - **6 guesses maximum** per daily challenge
-- **Distance feedback** shown for each guess
+- **Distance feedback** shown for each guess (km or miles)
 - **Win condition**: Guess within 50km of the actual location
-- **New challenge** every day
+- **New challenge** every day - automatically generated from a pool of 60+ locations
 - **Hints available** to help you narrow down the location
+- **Two ways to guess**: Search by name or click on the map
 
 ## API Endpoints
 
@@ -115,24 +147,35 @@ locodle-second/
 └── README.md
 ```
 
-## Adding New Locations
+## How Location Generation Works
 
-Edit `backend/data/locations.js` to add new locations:
+The game automatically generates a new random location each day from a pool of 60+ famous landmarks, cities, and natural wonders. Locations are:
+
+- **Randomly selected** each day
+- **Stored in PostgreSQL** for consistency
+- **Never repeated** within 30 days
+- **Automatically generated** - no manual intervention needed
+
+The location pool includes:
+- Major world cities (Tokyo, New York, Paris, etc.)
+- Famous landmarks (Pyramids, Stonehenge, etc.)
+- Natural wonders (Grand Canyon, Mount Everest, etc.)
+
+### Adding More Locations
+
+To expand the location pool, edit `backend/services/locationGenerator.js` and add entries to the `LOCATION_TEMPLATES` array:
 
 ```javascript
 {
-  name: "Location Name",
+  type: 'city', // or 'landmark' or 'natural'
+  name: 'Location Name',
   lat: 12.3456,
   lng: 78.9012,
-  country: "Country",
-  hints: [
-    "Hint 1",
-    "Hint 2",
-    "Hint 3"
-  ],
-  imageUrl: "https://example.com/image.jpg"
+  country: 'Country'
 }
 ```
+
+Hints are automatically generated based on the location type, hemisphere, and continent.
 
 ## Building for Production
 

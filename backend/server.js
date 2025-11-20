@@ -1,6 +1,11 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
-import { locations } from "./data/locations.js";
+import {
+  getTodaysLocation,
+  getGameSession,
+  saveGameSession,
+} from "./services/locationGenerator.js";
+import pool from "./db/connection.js";
 
 const fastify = Fastify({
   logger: true,
@@ -11,17 +16,25 @@ await fastify.register(cors, {
   origin: ["http://localhost:3000", "http://localhost:5173"],
 });
 
-// Game state management
-const gameState = new Map();
+// Cache for today's location to avoid repeated DB queries
+let cachedLocation = null;
+let cacheDate = null;
 
 // Get daily location (same for all players on a given day)
-function getDailyLocation() {
+async function getDailyLocation() {
   const today = new Date().toISOString().split("T")[0];
-  const daysSinceEpoch = Math.floor(
-    new Date(today).getTime() / (1000 * 60 * 60 * 24)
-  );
-  const index = daysSinceEpoch % locations.length;
-  return locations[index];
+
+  // Return cached location if it's still today
+  if (cachedLocation && cacheDate === today) {
+    return cachedLocation;
+  }
+
+  // Get or generate location from database
+  const location = await getTodaysLocation();
+  cachedLocation = location;
+  cacheDate = today;
+
+  return location;
 }
 
 // Routes
@@ -30,14 +43,19 @@ fastify.get("/api/health", async (request, reply) => {
 });
 
 fastify.get("/api/daily-challenge", async (request, reply) => {
-  const dailyLocation = getDailyLocation();
+  try {
+    const dailyLocation = await getDailyLocation();
 
-  // Return location without revealing the answer
-  return {
-    date: new Date().toISOString().split("T")[0],
-    hints: dailyLocation.hints,
-    maxGuesses: 6,
-  };
+    // Return location without revealing the answer
+    return {
+      date: new Date().toISOString().split("T")[0],
+      hints: dailyLocation.hints,
+      maxGuesses: 6,
+    };
+  } catch (error) {
+    fastify.log.error(error);
+    return reply.code(500).send({ error: "Failed to load daily challenge" });
+  }
 });
 
 fastify.post("/api/guess", async (request, reply) => {
@@ -47,85 +65,104 @@ fastify.post("/api/guess", async (request, reply) => {
     return reply.code(400).send({ error: "Missing guess or sessionId" });
   }
 
-  const dailyLocation = getDailyLocation();
+  try {
+    const dailyLocation = await getDailyLocation();
 
-  // Get or create session state
-  if (!gameState.has(sessionId)) {
-    gameState.set(sessionId, {
-      guesses: [],
-      completed: false,
-      won: false,
-    });
+    // Get or create session state from database
+    let session = await getGameSession(sessionId);
+
+    if (!session) {
+      session = {
+        guesses: [],
+        completed: false,
+        won: false,
+      };
+    }
+
+    if (session.completed) {
+      return reply.code(400).send({ error: "Game already completed" });
+    }
+
+    if (session.guesses.length >= 6) {
+      return reply.code(400).send({ error: "Maximum guesses reached" });
+    }
+
+    // Calculate distance between guess and actual location
+    const distance = calculateDistance(
+      guess.lat,
+      guess.lng,
+      dailyLocation.lat,
+      dailyLocation.lng
+    );
+
+    const guessResult = {
+      guess: guess.name,
+      lat: guess.lat,
+      lng: guess.lng,
+      distance: Math.round(distance),
+      timestamp: new Date().toISOString(),
+    };
+
+    session.guesses.push(guessResult);
+
+    // Check if won (within 50km)
+    const won = distance < 50;
+
+    if (won || session.guesses.length >= 6) {
+      session.completed = true;
+      session.won = won;
+    }
+
+    // Save session to database
+    await saveGameSession(
+      sessionId,
+      dailyLocation.id,
+      session.guesses,
+      session.completed,
+      session.won
+    );
+
+    return {
+      ...guessResult,
+      guessNumber: session.guesses.length,
+      maxGuesses: 6,
+      completed: session.completed,
+      won: session.won,
+      answer: session.completed
+        ? {
+            name: dailyLocation.name,
+            lat: dailyLocation.lat,
+            lng: dailyLocation.lng,
+            country: dailyLocation.country,
+          }
+        : null,
+    };
+  } catch (error) {
+    fastify.log.error(error);
+    return reply.code(500).send({ error: "Failed to process guess" });
   }
-
-  const session = gameState.get(sessionId);
-
-  if (session.completed) {
-    return reply.code(400).send({ error: "Game already completed" });
-  }
-
-  if (session.guesses.length >= 6) {
-    return reply.code(400).send({ error: "Maximum guesses reached" });
-  }
-
-  // Calculate distance between guess and actual location
-  const distance = calculateDistance(
-    guess.lat,
-    guess.lng,
-    dailyLocation.lat,
-    dailyLocation.lng
-  );
-
-  const guessResult = {
-    guess: guess.name,
-    lat: guess.lat,
-    lng: guess.lng,
-    distance: Math.round(distance),
-    timestamp: new Date().toISOString(),
-  };
-
-  session.guesses.push(guessResult);
-
-  // Check if won (within 50km)
-  const won = distance < 50;
-
-  if (won || session.guesses.length >= 6) {
-    session.completed = true;
-    session.won = won;
-  }
-
-  return {
-    ...guessResult,
-    guessNumber: session.guesses.length,
-    maxGuesses: 6,
-    completed: session.completed,
-    won: session.won,
-    answer: session.completed
-      ? {
-          name: dailyLocation.name,
-          lat: dailyLocation.lat,
-          lng: dailyLocation.lng,
-          country: dailyLocation.country,
-        }
-      : null,
-  };
 });
 
 fastify.get("/api/stats/:sessionId", async (request, reply) => {
   const { sessionId } = request.params;
 
-  const session = gameState.get(sessionId) || {
-    guesses: [],
-    completed: false,
-    won: false,
-  };
+  try {
+    const session = (await getGameSession(sessionId)) || {
+      guesses: [],
+      completed: false,
+      won: false,
+    };
 
-  return {
-    guesses: session.guesses,
-    completed: session.completed,
-    won: session.won,
-    guessCount: session.guesses.length,
-  };
+    return {
+      guesses: session.guesses,
+      completed: session.completed,
+      won: session.won,
+      guessCount: session.guesses.length,
+    };
+  } catch (error) {
+    fastify.log.error(error);
+    return reply.code(500).send({ error: "Failed to load stats" });
+  }
 });
 
 // Haversine formula to calculate distance between two coordinates
@@ -151,9 +188,24 @@ function toRad(degrees) {
   return degrees * (Math.PI / 180);
 }
 
+// Graceful shutdown
+const closeGracefully = async (signal) => {
+  console.log(`\n⚠️  Received signal to terminate: ${signal}`);
+  await pool.end();
+  await fastify.close();
+  process.exit(0);
+};
+
+process.on("SIGINT", closeGracefully);
+process.on("SIGTERM", closeGracefully);
+
 // Start server
 const start = async () => {
   try {
+    // Test database connection
+    await pool.query("SELECT NOW()");
+    console.log("✅ Database connection successful");
+
     await fastify.listen({ port: 3001, host: "0.0.0.0" });
     console.log("🚀 Locodle backend running on http://localhost:3001");
   } catch (err) {
