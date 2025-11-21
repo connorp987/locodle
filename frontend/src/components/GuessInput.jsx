@@ -3,6 +3,7 @@ import { Search, MapPin } from "lucide-react";
 
 const GuessInput = ({
   onGuess,
+  onConfirm,
   disabled,
   guessCount,
   maxGuesses,
@@ -81,31 +82,9 @@ const GuessInput = ({
     setSuggestions([]);
   };
 
-  const handleConfirmMapGuess = async () => {
-    if (!tempMarker) return;
-
-    // Reverse geocode to get location name
-    try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${tempMarker.lat}&lon=${tempMarker.lng}`
-      );
-      const data = await response.json();
-
-      onGuess({
-        name:
-          data.display_name ||
-          `${tempMarker.lat.toFixed(4)}, ${tempMarker.lng.toFixed(4)}`,
-        lat: tempMarker.lat,
-        lng: tempMarker.lng,
-      });
-    } catch (error) {
-      // Fallback to coordinates if reverse geocoding fails
-      onGuess({
-        name: `${tempMarker.lat.toFixed(4)}, ${tempMarker.lng.toFixed(4)}`,
-        lat: tempMarker.lat,
-        lng: tempMarker.lng,
-      });
-    }
+  const handleConfirmMapGuess = () => {
+    if (!tempMarker || !onConfirm) return;
+    onConfirm(tempMarker);
   };
 
   const remainingGuesses = maxGuesses - guessCount;

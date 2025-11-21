@@ -22,6 +22,7 @@ function App() {
     return newId;
   });
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [showHints, setShowHints] = useState(false);
   const [tempMarker, setTempMarker] = useState(null);
   const [useKm, setUseKm] = useState(true);
@@ -61,7 +62,38 @@ function App() {
     }
   };
 
+  const handleConfirmLocation = async (latlng) => {
+    if (submitting) return;
+    setSubmitting(true);
+
+    // Reverse geocode to get location name
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latlng.lat}&lon=${latlng.lng}`
+      );
+      const data = await response.json();
+
+      await handleGuess({
+        name:
+          data.display_name ||
+          `${latlng.lat.toFixed(4)}, ${latlng.lng.toFixed(4)}`,
+        lat: latlng.lat,
+        lng: latlng.lng,
+      });
+    } catch (error) {
+      // Fallback to coordinates if reverse geocoding fails
+      await handleGuess({
+        name: `${latlng.lat.toFixed(4)}, ${latlng.lng.toFixed(4)}`,
+        lat: latlng.lat,
+        lng: latlng.lng,
+      });
+    }
+  };
+
   const handleGuess = async (location) => {
+    // If not already submitting (called directly from input), set it
+    if (!submitting) setSubmitting(true);
+
     try {
       const response = await fetch("/api/guess", {
         method: "POST",
@@ -89,6 +121,8 @@ function App() {
     } catch (error) {
       console.error("Failed to submit guess:", error);
       alert("Failed to submit guess");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -146,6 +180,8 @@ function App() {
                   guesses={guesses}
                   answer={answer}
                   onMapClick={!gameCompleted ? handleMapClick : null}
+                  onConfirm={!gameCompleted ? handleConfirmLocation : null}
+                  isSubmitting={submitting}
                   tempMarker={tempMarker}
                   useKm={useKm}
                 />
@@ -156,6 +192,7 @@ function App() {
             {!gameCompleted && (
               <GuessInput
                 onGuess={handleGuess}
+                onConfirm={handleConfirmLocation}
                 disabled={gameCompleted}
                 guessCount={guesses.length}
                 maxGuesses={challenge?.maxGuesses || 6}
