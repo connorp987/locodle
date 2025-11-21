@@ -43,7 +43,7 @@ const GuessHistory = ({ guesses, useKm = true }) => {
       </h2>
 
       <div className="space-y-3">
-        {guesses.map((guess, index) => (
+        {[...guesses].reverse().map((guess, index) => (
           <div
             key={index}
             className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
@@ -51,7 +51,7 @@ const GuessHistory = ({ guesses, useKm = true }) => {
             <div className="flex items-start justify-between mb-2">
               <div className="flex items-center gap-2">
                 <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary-600 text-white text-xs font-bold">
-                  {index + 1}
+                  {guesses.length - index}
                 </span>
                 <p className="font-medium text-gray-900 text-sm">
                   {guess.guess.split(",")[0]}
