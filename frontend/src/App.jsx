@@ -236,8 +236,8 @@ function App() {
                     </h2>
                     <p className="text-xl text-gray-700">
                       You found{" "}
-                      <span className="font-bold">{answer?.name}</span> in{" "}
-                      {guesses.length}{" "}
+                      <span className="font-bold">{answer?.name}</span>,{" "}
+                      {answer?.country} in {guesses.length}{" "}
                       {guesses.length === 1 ? "guess" : "guesses"}!
                     </p>
                   </>
@@ -249,9 +249,10 @@ function App() {
                     </h2>
                     <p className="text-xl text-gray-700">
                       The answer was{" "}
-                      <span className="font-bold">{answer?.name}</span>
+                      <span className="font-bold">{answer?.name}</span>,{" "}
+                      {answer?.country}
                     </p>
-                    <p className="text-gray-600 mt-2">{answer?.country}</p>
+
                   </>
                 )}
                 <p className="text-gray-500 mt-4">
