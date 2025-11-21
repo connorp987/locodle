@@ -66,27 +66,45 @@ function App() {
     if (submitting) return;
     setSubmitting(true);
 
-    // Reverse geocode to get location name
-    try {
-      const response = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latlng.lat}&lon=${latlng.lng}`
-      );
-      const data = await response.json();
+    // 1. Submit guess immediately with coordinates as name
+    const coordinateName = `${latlng.lat.toFixed(4)}, ${latlng.lng.toFixed(4)}`;
+    
+    // We need to capture the index of this new guess to update it later
+    const guessIndex = guesses.length;
 
+    try {
+      // Start the guess submission
       await handleGuess({
-        name:
-          data.display_name ||
-          `${latlng.lat.toFixed(4)}, ${latlng.lng.toFixed(4)}`,
+        name: coordinateName,
         lat: latlng.lat,
         lng: latlng.lng,
       });
+
+      // 2. Fetch real name in background
+      fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latlng.lat}&lon=${latlng.lng}`
+      )
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.display_name) {
+            // Update the guess name in state
+            setGuesses((prev) => {
+              const newGuesses = [...prev];
+              // Find the guess that matches our coordinates (in case index shifted, though unlikely in this flow)
+              // But using index is safe here since we append
+              if (newGuesses[guessIndex]) {
+                newGuesses[guessIndex] = {
+                  ...newGuesses[guessIndex],
+                  guess: data.display_name,
+                };
+              }
+              return newGuesses;
+            });
+          }
+        })
+        .catch((err) => console.error("Failed to fetch location name:", err));
     } catch (error) {
-      // Fallback to coordinates if reverse geocoding fails
-      await handleGuess({
-        name: `${latlng.lat.toFixed(4)}, ${latlng.lng.toFixed(4)}`,
-        lat: latlng.lat,
-        lng: latlng.lng,
-      });
+      console.error("Error submitting guess:", error);
     }
   };
 
