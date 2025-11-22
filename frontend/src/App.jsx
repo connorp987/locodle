@@ -20,7 +20,10 @@ function App() {
   const [submitting, setSubmitting] = submittingRef; // Alias for compatibility
   const [showHints, setShowHints] = useState(false);
   const [tempMarker, setTempMarker] = useState(null);
-  const [useKm, setUseKm] = useState(true);
+  const [useKm, setUseKm] = useState(() => {
+    const stored = localStorage.getItem("locodle-use-km");
+    return stored ? JSON.parse(stored) : false; // Default to Miles (false)
+  });
   const [currentDate, setCurrentDate] = useState(
     new Date().toISOString().split("T")[0]
   );
@@ -55,6 +58,11 @@ function App() {
       setLoading(false);
     });
   }, [currentDate]);
+
+  // Save unit preference when it changes
+  useEffect(() => {
+    localStorage.setItem("locodle-use-km", JSON.stringify(useKm));
+  }, [useKm]);
 
   const loadAvailableDates = async () => {
     try {
