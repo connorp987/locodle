@@ -35,6 +35,39 @@ const GuessHistory = ({ guesses, useKm = true }) => {
     return "🌍";
   };
 
+  const formatLocationName = (guess) => {
+    // If we have structured address data from the backend, use it
+    if (guess.address) {
+      const { city, town, village, hamlet, suburb, county, state, country } = guess.address;
+      
+      // Try to find the most relevant "city-like" name
+      const mainName = city || town || village || hamlet || suburb;
+      
+      if (mainName) {
+        // Append state or country for context if available, but keep it short
+        // e.g. "Paris, France" or "Springfield, IL"
+        const context = country || state;
+        return context ? `${mainName}, ${context}` : mainName;
+      }
+    }
+
+    // Fallback to parsing the display_name string if no address object
+    const fullAddress = guess.guess;
+    if (!fullAddress) return "";
+    const parts = fullAddress.split(",").map((p) => p.trim());
+    if (parts.length === 0) return fullAddress;
+
+    const firstPart = parts[0];
+    // Check if first part is likely a house number (digits, optionally followed by a letter, e.g. "73", "73a", "10-12")
+    const isHouseNumber = /^[\d\-\s]+[a-zA-Z]?$/.test(firstPart);
+
+    if (isHouseNumber && parts.length > 1) {
+      return `${firstPart} ${parts[1]}`;
+    }
+
+    return firstPart;
+  };
+
   return (
     <div className="bg-white rounded-xl shadow-lg p-6">
       <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
@@ -54,7 +87,7 @@ const GuessHistory = ({ guesses, useKm = true }) => {
                   {guesses.length - index}
                 </span>
                 <p className="font-medium text-gray-900 text-sm">
-                  {guess.guess.split(",")[0]}
+                  {formatLocationName(guess)}
                 </p>
               </div>
               <span className="text-2xl">

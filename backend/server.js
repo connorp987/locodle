@@ -113,14 +113,18 @@ fastify.post("/api/guess", async (request, reply) => {
 
     // Fetch location name from Nominatim
     let guessName = guess.name;
+    let guessAddress = null;
     try {
       const nominatimRes = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${guess.lat}&lon=${guess.lng}`,
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${guess.lat}&lon=${guess.lng}&addressdetails=1`,
         { headers: { "User-Agent": "Locodle/1.0" } }
       );
       const nominatimData = await nominatimRes.json();
       if (nominatimData.display_name) {
         guessName = nominatimData.display_name;
+      }
+      if (nominatimData.address) {
+        guessAddress = nominatimData.address;
       }
     } catch (err) {
       console.error("Failed to fetch location name from Nominatim:", err);
@@ -133,6 +137,7 @@ fastify.post("/api/guess", async (request, reply) => {
       lng: guess.lng,
       distance: Math.round(distance),
       timestamp: new Date().toISOString(),
+      address: guessAddress,
     };
 
     // Check if won (within 50km)
