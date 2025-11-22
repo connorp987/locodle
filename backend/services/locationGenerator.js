@@ -395,15 +395,15 @@ function getContinent(country) {
   return continents[country] || null;
 }
 
-// Get or create today's location
-export async function getTodaysLocation() {
-  const today = new Date().toISOString().split("T")[0];
+// Get location for a specific date (defaults to today)
+export async function getLocationForDate(date = null) {
+  const targetDate = date || new Date().toISOString().split("T")[0];
 
   try {
-    // Check if we already have a location for today
+    // Check if we already have a location for this date
     const result = await pool.query(
       "SELECT * FROM locations WHERE DATE(created_at) = $1 AND is_active = true ORDER BY created_at DESC LIMIT 1",
-      [today]
+      [targetDate]
     );
 
     if (result.rows.length > 0) {
@@ -418,13 +418,37 @@ export async function getTodaysLocation() {
       };
     }
 
-    // No location for today, generate a new one
-    return await generateNewLocation();
+    // If requesting today and no location exists, generate one
+    const today = new Date().toISOString().split("T")[0];
+    if (targetDate === today) {
+      return await generateNewLocation();
+    }
+
+    // If requesting a past date that doesn't exist, return null or throw
+    return null;
   } catch (error) {
-    console.error("Error getting today's location:", error);
+    console.error("Error getting location for date:", error);
     throw error;
   }
 }
+
+// Get all available dates that have games
+export async function getAvailableDates() {
+  try {
+    const result = await pool.query(
+      "SELECT DISTINCT DATE(created_at) as date FROM locations WHERE is_active = true ORDER BY date DESC"
+    );
+    return result.rows.map((row) => {
+        // Format date as YYYY-MM-DD to avoid timezone issues
+        const d = new Date(row.date);
+        return d.toISOString().split('T')[0];
+    });
+  } catch (error) {
+    console.error("Error getting available dates:", error);
+    throw error;
+  }
+}
+
 
 // Generate a new random location
 async function generateNewLocation() {
@@ -483,55 +507,4 @@ async function generateNewLocation() {
   }
 }
 
-// Get game session
-export async function getGameSession(sessionId) {
-  try {
-    const result = await pool.query(
-      "SELECT * FROM game_sessions WHERE session_id = $1 AND game_date = CURRENT_DATE",
-      [sessionId]
-    );
-
-    if (result.rows.length > 0) {
-      const session = result.rows[0];
-      return {
-        guesses: session.guesses || [],
-        completed: session.completed,
-        won: session.won,
-      };
-    }
-
-    return null;
-  } catch (error) {
-    console.error("Error getting game session:", error);
-    throw error;
-  }
-}
-
-// Save game session
-export async function saveGameSession(
-  sessionId,
-  locationId,
-  guesses,
-  completed,
-  won
-) {
-  try {
-    const result = await pool.query(
-      `INSERT INTO game_sessions (session_id, location_id, guesses, completed, won, game_date)
-       VALUES ($1, $2, $3, $4, $5, CURRENT_DATE)
-       ON CONFLICT (session_id) 
-       DO UPDATE SET 
-         guesses = $3,
-         completed = $4,
-         won = $5,
-         updated_at = CURRENT_TIMESTAMP
-       RETURNING *`,
-      [sessionId, locationId, JSON.stringify(guesses), completed, won]
-    );
-
-    return result.rows[0];
-  } catch (error) {
-    console.error("Error saving game session:", error);
-    throw error;
-  }
-}
+// Session management functions removed as we migrated to local storage

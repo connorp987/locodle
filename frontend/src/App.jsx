@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { MapPin, Trophy, Target, Info } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { MapPin, Trophy, Target, Info, Calendar } from "lucide-react";
 import GameMap from "./components/GameMap";
 import GuessInput from "./components/GuessInput";
 import GuessHistory from "./components/GuessHistory";
@@ -12,49 +12,72 @@ function App() {
   const [gameCompleted, setGameCompleted] = useState(false);
   const [gameWon, setGameWon] = useState(false);
   const [answer, setAnswer] = useState(null);
-  const [sessionId] = useState(() => {
-    const stored = localStorage.getItem("locodle-session");
-    if (stored) return stored;
-    const newId = `session-${Date.now()}-${Math.random()
-      .toString(36)
-      .substr(2, 9)}`;
-    localStorage.setItem("locodle-session", newId);
-    return newId;
-  });
+  // Session ID is no longer needed for state, but we can keep a random ID for the user if needed later
+  // For now, we'll just remove the session ID state entirely as it's not used for local storage
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useState(false); // Keep state for UI updates
+  const isSubmitting = useRef(false); // Use ref for logic checks
+  const [submitting, setSubmitting] = submittingRef; // Alias for compatibility
   const [showHints, setShowHints] = useState(false);
   const [tempMarker, setTempMarker] = useState(null);
   const [useKm, setUseKm] = useState(true);
+  const [currentDate, setCurrentDate] = useState(
+    new Date().toISOString().split("T")[0]
+  );
+  const [availableDates, setAvailableDates] = useState([]);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   useEffect(() => {
-    loadDailyChallenge();
-    loadGameState();
+    loadAvailableDates();
   }, []);
+
+  useEffect(() => {
+    setLoading(true);
+    
+    // Load game state from local storage
+    const savedState = localStorage.getItem(`locodle-state-${currentDate}`);
+    if (savedState) {
+      const parsed = JSON.parse(savedState);
+      setGuesses(parsed.guesses || []);
+      setGameCompleted(parsed.completed || false);
+      setGameWon(parsed.won || false);
+      setAnswer(parsed.answer || null);
+    } else {
+      // Reset game state for new day
+      setGuesses([]);
+      setGameCompleted(false);
+      setGameWon(false);
+      setAnswer(null);
+    }
+    setTempMarker(null);
+    
+    loadDailyChallenge().finally(() => {
+      setLoading(false);
+    });
+  }, [currentDate]);
+
+  const loadAvailableDates = async () => {
+    try {
+      const response = await fetch("/api/days");
+      const data = await response.json();
+      setAvailableDates(data.dates || []);
+    } catch (error) {
+      console.error("Failed to load available dates:", error);
+    }
+  };
 
   const loadDailyChallenge = async () => {
     try {
-      const response = await fetch("/api/daily-challenge");
+      const response = await fetch(`/api/daily-challenge?date=${currentDate}`);
+      if (!response.ok) throw new Error("Failed to load challenge");
       const data = await response.json();
       setChallenge(data);
-      setLoading(false);
     } catch (error) {
       console.error("Failed to load challenge:", error);
-      setLoading(false);
     }
   };
 
-  const loadGameState = async () => {
-    try {
-      const response = await fetch(`/api/stats/${sessionId}`);
-      const data = await response.json();
-      setGuesses(data.guesses || []);
-      setGameCompleted(data.completed || false);
-      setGameWon(data.won || false);
-    } catch (error) {
-      console.error("Failed to load game state:", error);
-    }
-  };
+  // Removed loadGameState as we now use localStorage
 
   const handleMapClick = (latlng) => {
     if (!gameCompleted) {
@@ -62,55 +85,24 @@ function App() {
     }
   };
 
-  const handleConfirmLocation = async (latlng) => {
-    if (submitting) return;
-    setSubmitting(true);
-
+  const handleConfirmLocation = (latlng) => {
     // 1. Submit guess immediately with coordinates as name
     const coordinateName = `${latlng.lat.toFixed(4)}, ${latlng.lng.toFixed(4)}`;
     
-    // We need to capture the index of this new guess to update it later
-    const guessIndex = guesses.length;
-
-    try {
-      // Start the guess submission
-      await handleGuess({
-        name: coordinateName,
-        lat: latlng.lat,
-        lng: latlng.lng,
-      });
-
-      // 2. Fetch real name in background
-      fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latlng.lat}&lon=${latlng.lng}`
-      )
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.display_name) {
-            // Update the guess name in state
-            setGuesses((prev) => {
-              const newGuesses = [...prev];
-              // Find the guess that matches our coordinates (in case index shifted, though unlikely in this flow)
-              // But using index is safe here since we append
-              if (newGuesses[guessIndex]) {
-                newGuesses[guessIndex] = {
-                  ...newGuesses[guessIndex],
-                  guess: data.display_name,
-                };
-              }
-              return newGuesses;
-            });
-          }
-        })
-        .catch((err) => console.error("Failed to fetch location name:", err));
-    } catch (error) {
-      console.error("Error submitting guess:", error);
-    }
+    // 2. Submit guess (backend will handle reverse geocoding)
+    handleGuess({
+      name: coordinateName,
+      lat: latlng.lat,
+      lng: latlng.lng,
+    });
   };
 
   const handleGuess = async (location) => {
-    // If not already submitting (called directly from input), set it
-    if (!submitting) setSubmitting(true);
+    // Prevent double submissions
+    if (isSubmitting.current) return;
+    
+    isSubmitting.current = true;
+    setSubmitting(true);
 
     try {
       const response = await fetch("/api/guess", {
@@ -118,21 +110,40 @@ function App() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           guess: location,
-          sessionId,
+          date: currentDate,
         }),
       });
 
       const result = await response.json();
 
       if (response.ok) {
-        setGuesses((prev) => [...prev, result]);
+        const newGuesses = [...guesses, result];
+        setGuesses(newGuesses);
         setTempMarker(null); // Clear temp marker after successful guess
 
+        let newCompleted = gameCompleted;
+        let newWon = gameWon;
+        let newAnswer = answer;
+
         if (result.completed) {
+          newCompleted = true;
+          newWon = result.won;
+          newAnswer = result.answer;
           setGameCompleted(true);
           setGameWon(result.won);
           setAnswer(result.answer);
         }
+
+        // Save to local storage
+        localStorage.setItem(
+          `locodle-state-${currentDate}`,
+          JSON.stringify({
+            guesses: newGuesses,
+            completed: newCompleted,
+            won: newWon,
+            answer: newAnswer,
+          })
+        );
       } else {
         alert(result.error || "Failed to submit guess");
       }
@@ -140,6 +151,7 @@ function App() {
       console.error("Failed to submit guess:", error);
       alert("Failed to submit guess");
     } finally {
+      isSubmitting.current = false;
       setSubmitting(false);
     }
   };
@@ -166,6 +178,45 @@ function App() {
               <h1 className="text-3xl font-bold text-gray-900">Locodle</h1>
             </div>
             <div className="flex items-center gap-3">
+              <div className="relative">
+                <button
+                  onClick={() => setShowDatePicker(!showDatePicker)}
+                  className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
+                >
+                  <Calendar className="w-5 h-5 text-primary-600" />
+                  <span className="font-medium">{currentDate}</span>
+                </button>
+
+                {showDatePicker && (
+                  <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-100 z-50 overflow-hidden">
+                    <div className="p-3 bg-gray-50 border-b border-gray-100">
+                      <h3 className="font-semibold text-gray-700">Select Date</h3>
+                    </div>
+                    <div className="max-h-64 overflow-y-auto">
+                      {availableDates.map((date) => (
+                        <button
+                          key={date}
+                          onClick={() => {
+                            setCurrentDate(date);
+                            setShowDatePicker(false);
+                          }}
+                          className={`w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors flex items-center justify-between ${
+                            currentDate === date
+                              ? "bg-primary-50 text-primary-700 font-medium"
+                              : "text-gray-600"
+                          }`}
+                        >
+                          <span>{date}</span>
+                          {currentDate === date && (
+                            <div className="w-2 h-2 rounded-full bg-primary-500" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <button
                 onClick={() => setUseKm(!useKm)}
                 className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"

@@ -1,9 +1,8 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import {
-  getTodaysLocation,
-  getGameSession,
-  saveGameSession,
+  getLocationForDate,
+  getAvailableDates,
 } from "./services/locationGenerator.js";
 import pool from "./db/connection.js";
 
@@ -21,18 +20,23 @@ let cachedLocation = null;
 let cacheDate = null;
 
 // Get daily location (same for all players on a given day)
-async function getDailyLocation() {
+async function getDailyLocation(date = null) {
+  const targetDate = date || new Date().toISOString().split("T")[0];
   const today = new Date().toISOString().split("T")[0];
 
-  // Return cached location if it's still today
-  if (cachedLocation && cacheDate === today) {
+  // Return cached location if it's still today and we're requesting today
+  if (!date && cachedLocation && cacheDate === today) {
     return cachedLocation;
   }
 
   // Get or generate location from database
-  const location = await getTodaysLocation();
-  cachedLocation = location;
-  cacheDate = today;
+  const location = await getLocationForDate(targetDate);
+  
+  // Only cache if it's today's location
+  if (!date || targetDate === today) {
+    cachedLocation = location;
+    cacheDate = today;
+  }
 
   return location;
 }
@@ -42,13 +46,28 @@ fastify.get("/api/health", async (request, reply) => {
   return { status: "ok", timestamp: new Date().toISOString() };
 });
 
+fastify.get("/api/days", async (request, reply) => {
+  try {
+    const dates = await getAvailableDates();
+    return { dates };
+  } catch (error) {
+    fastify.log.error(error);
+    return reply.code(500).send({ error: "Failed to load available dates" });
+  }
+});
+
 fastify.get("/api/daily-challenge", async (request, reply) => {
   try {
-    const dailyLocation = await getDailyLocation();
+    const { date } = request.query;
+    const dailyLocation = await getDailyLocation(date);
+
+    if (!dailyLocation) {
+      return reply.code(404).send({ error: "No challenge found for this date" });
+    }
 
     // Return location without revealing the answer
     return {
-      date: new Date().toISOString().split("T")[0],
+      date: date || new Date().toISOString().split("T")[0],
       hints: dailyLocation.hints,
       maxGuesses: 6,
     };
@@ -59,32 +78,17 @@ fastify.get("/api/daily-challenge", async (request, reply) => {
 });
 
 fastify.post("/api/guess", async (request, reply) => {
-  const { guess, sessionId } = request.body;
+  const { guess, date } = request.body;
 
-  if (!guess || !sessionId) {
-    return reply.code(400).send({ error: "Missing guess or sessionId" });
+  if (!guess) {
+    return reply.code(400).send({ error: "Missing guess" });
   }
 
   try {
-    const dailyLocation = await getDailyLocation();
+    const dailyLocation = await getDailyLocation(date);
 
-    // Get or create session state from database
-    let session = await getGameSession(sessionId);
-
-    if (!session) {
-      session = {
-        guesses: [],
-        completed: false,
-        won: false,
-      };
-    }
-
-    if (session.completed) {
-      return reply.code(400).send({ error: "Game already completed" });
-    }
-
-    if (session.guesses.length >= 6) {
-      return reply.code(400).send({ error: "Maximum guesses reached" });
+    if (!dailyLocation) {
+      return reply.code(404).send({ error: "No challenge found for this date" });
     }
 
     // Calculate distance between guess and actual location
@@ -95,40 +99,39 @@ fastify.post("/api/guess", async (request, reply) => {
       dailyLocation.lng
     );
 
+    // Fetch location name from Nominatim
+    let guessName = guess.name;
+    try {
+      const nominatimRes = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${guess.lat}&lon=${guess.lng}`,
+        { headers: { "User-Agent": "Locodle/1.0" } }
+      );
+      const nominatimData = await nominatimRes.json();
+      if (nominatimData.display_name) {
+        guessName = nominatimData.display_name;
+      }
+    } catch (err) {
+      console.error("Failed to fetch location name from Nominatim:", err);
+      // Fallback to coordinate name if fetch fails, which is already in guess.name
+    }
+
     const guessResult = {
-      guess: guess.name,
+      guess: guessName,
       lat: guess.lat,
       lng: guess.lng,
       distance: Math.round(distance),
       timestamp: new Date().toISOString(),
     };
 
-    session.guesses.push(guessResult);
-
     // Check if won (within 50km)
     const won = distance < 50;
-
-    if (won || session.guesses.length >= 6) {
-      session.completed = true;
-      session.won = won;
-    }
-
-    // Save session to database
-    await saveGameSession(
-      sessionId,
-      dailyLocation.id,
-      session.guesses,
-      session.completed,
-      session.won
-    );
+    const completed = won; // In stateless mode, we don't track max guesses on server
 
     return {
       ...guessResult,
-      guessNumber: session.guesses.length,
-      maxGuesses: 6,
-      completed: session.completed,
-      won: session.won,
-      answer: session.completed
+      completed: completed,
+      won: won,
+      answer: completed
         ? {
             name: dailyLocation.name,
             lat: dailyLocation.lat,
@@ -143,27 +146,9 @@ fastify.post("/api/guess", async (request, reply) => {
   }
 });
 
-fastify.get("/api/stats/:sessionId", async (request, reply) => {
-  const { sessionId } = request.params;
+// Removed PATCH /api/guess/name as it is no longer needed
 
-  try {
-    const session = (await getGameSession(sessionId)) || {
-      guesses: [],
-      completed: false,
-      won: false,
-    };
-
-    return {
-      guesses: session.guesses,
-      completed: session.completed,
-      won: session.won,
-      guessCount: session.guesses.length,
-    };
-  } catch (error) {
-    fastify.log.error(error);
-    return reply.code(500).send({ error: "Failed to load stats" });
-  }
-});
+// Removed stats endpoint as state is now client-side
 
 // Haversine formula to calculate distance between two coordinates
 function calculateDistance(lat1, lon1, lat2, lon2) {
