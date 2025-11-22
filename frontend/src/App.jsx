@@ -6,6 +6,8 @@ import GuessHistory from "./components/GuessHistory";
 import GameStats from "./components/GameStats";
 import HintsPanel from "./components/HintsPanel";
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
+
 function App() {
   const [challenge, setChallenge] = useState(null);
   const [guesses, setGuesses] = useState([]);
@@ -66,7 +68,7 @@ function App() {
 
   const loadAvailableDates = async () => {
     try {
-      const response = await fetch("/api/days");
+      const response = await fetch(`${API_BASE_URL}/api/days`);
       const data = await response.json();
       setAvailableDates(data.dates || []);
     } catch (error) {
@@ -76,7 +78,7 @@ function App() {
 
   const loadDailyChallenge = async () => {
     try {
-      const response = await fetch(`/api/daily-challenge?date=${currentDate}`);
+      const response = await fetch(`${API_BASE_URL}/api/daily-challenge?date=${currentDate}`);
       if (!response.ok) throw new Error("Failed to load challenge");
       const data = await response.json();
       setChallenge(data);
@@ -116,7 +118,7 @@ function App() {
     const isLastGuess = guesses.length === 5;
 
     try {
-      const response = await fetch("/api/guess", {
+      const response = await fetch(`${API_BASE_URL}/api/guess`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
