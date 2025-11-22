@@ -1,5 +1,6 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
+import rateLimit from "@fastify/rate-limit";
 import {
   getLocationForDate,
   getAvailableDates,
@@ -13,6 +14,12 @@ const fastify = Fastify({
 // Enable CORS for frontend
 await fastify.register(cors, {
   origin: ["http://localhost:3000", "http://localhost:5173"],
+});
+
+// Rate limiting
+await fastify.register(rateLimit, {
+  max: 15,
+  timeWindow: "1 minute",
 });
 
 // Cache for today's location to avoid repeated DB queries
