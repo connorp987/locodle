@@ -13,7 +13,12 @@ const fastify = Fastify({
 
 // Enable CORS for frontend
 await fastify.register(cors, {
-  origin: ["http://localhost:3000", "http://localhost:5173"],
+  origin: [
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "https://dependable-rebirth-production-4f9e.up.railway.app",
+    process.env.FRONTEND_URL,
+  ].filter(Boolean),
 });
 
 // Rate limiting
