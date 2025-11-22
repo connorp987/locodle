@@ -80,8 +80,8 @@ function App() {
   // Removed loadGameState as we now use localStorage
 
   const handleMapClick = (latlng) => {
-    if (!gameCompleted) {
-      setTempMarker({ lat: latlng.lat, lng: latlng.lng });
+    if (!gameCompleted && guesses.length < 6) {
+      setTempMarker(latlng);
     }
   };
 
@@ -98,11 +98,14 @@ function App() {
   };
 
   const handleGuess = async (location) => {
-    // Prevent double submissions
-    if (isSubmitting.current) return;
+    // Prevent double submissions or extra guesses
+    if (isSubmitting.current || gameCompleted || guesses.length >= 6) return;
     
     isSubmitting.current = true;
     setSubmitting(true);
+
+    // Check if this is the last allowed guess (6th guess, index 5)
+    const isLastGuess = guesses.length === 5;
 
     try {
       const response = await fetch("/api/guess", {
@@ -111,6 +114,7 @@ function App() {
         body: JSON.stringify({
           guess: location,
           date: currentDate,
+          isLastGuess,
         }),
       });
 

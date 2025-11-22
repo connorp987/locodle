@@ -18,8 +18,8 @@ await fastify.register(cors, {
 
 // Rate limiting
 await fastify.register(rateLimit, {
-  max: 15,
-  timeWindow: "1 minute",
+  max: 20,
+  timeWindow: 60 * 1000, // 1 minute
 });
 
 // Cache for today's location to avoid repeated DB queries
@@ -85,7 +85,7 @@ fastify.get("/api/daily-challenge", async (request, reply) => {
 });
 
 fastify.post("/api/guess", async (request, reply) => {
-  const { guess, date } = request.body;
+  const { guess, date, isLastGuess } = request.body;
 
   if (!guess) {
     return reply.code(400).send({ error: "Missing guess" });
@@ -132,7 +132,7 @@ fastify.post("/api/guess", async (request, reply) => {
 
     // Check if won (within 50km)
     const won = distance < 50;
-    const completed = won; // In stateless mode, we don't track max guesses on server
+    const completed = won || isLastGuess; // Game over if won or it's the last guess
 
     return {
       ...guessResult,
