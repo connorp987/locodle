@@ -199,6 +199,42 @@ fastify.get("/api/tiles/:z/:x/:y", async (request, reply) => {
   }
 });
 
+// Discord Token Exchange
+fastify.post("/api/token", async (request, reply) => {
+  const { code } = request.body;
+  
+  if (!code) {
+    return reply.code(400).send({ error: "Missing code" });
+  }
+
+  try {
+    const response = await fetch("https://discord.com/api/oauth2/token", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({
+        client_id: process.env.DISCORD_CLIENT_ID,
+        client_secret: process.env.DISCORD_CLIENT_SECRET,
+        grant_type: "authorization_code",
+        code: code,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      fastify.log.error("Discord Token Error:", data);
+      return reply.code(500).send({ error: "Failed to exchange token" });
+    }
+
+    return { access_token: data.access_token };
+  } catch (error) {
+    fastify.log.error(error);
+    return reply.code(500).send({ error: "Internal server error" });
+  }
+});
+
 // Analytics Proxy for Discord (GA4 Measurement Protocol)
 fastify.post("/api/analytics", async (request, reply) => {
   const { event_name, params, client_id } = request.body;
