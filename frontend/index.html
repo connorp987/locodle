@@ -32,7 +32,7 @@
     <!-- Google Analytics -->
     <!-- Google Analytics (Only load if NOT in Discord) -->
     <script>
-      if (!document.referrer.includes("discord.com")) {
+      if (!window.location.hostname.includes("discordsays.com")) {
         const script = document.createElement('script');
         script.async = true;
         script.src = "https://www.googletagmanager.com/gtag/js?id=G-8V7LKZ4W98";
