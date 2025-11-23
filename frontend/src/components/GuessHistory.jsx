@@ -35,6 +35,20 @@ const GuessHistory = ({ guesses, useKm = true }) => {
     return "🌍";
   };
 
+  const getDirectionArrow = (direction) => {
+    const arrows = {
+      N: "⬆️",
+      NE: "↗️",
+      E: "➡️",
+      SE: "↘️",
+      S: "⬇️",
+      SW: "↙️",
+      W: "⬅️",
+      NW: "↖️",
+    };
+    return arrows[direction] || "";
+  };
+
   const formatLocationName = (guess) => {
     // If we have structured address data from the backend, use it
     if (guess.address) {
@@ -103,6 +117,11 @@ const GuessHistory = ({ guesses, useKm = true }) => {
               <TrendingDown className="w-4 h-4" />
               {convertDistance(guess.distance).toLocaleString()} {distanceUnit}{" "}
               away
+              {guesses.length >= 2 && guess.direction && guess.distance >= 50 && (
+                <span className="ml-2 font-bold text-gray-700" title={`Direction: ${guess.direction}`}>
+                  {guess.direction} {getDirectionArrow(guess.direction)}
+                </span>
+              )}
             </div>
 
             <p className="text-xs text-gray-500 mt-2">

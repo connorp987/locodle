@@ -111,6 +111,15 @@ fastify.post("/api/guess", async (request, reply) => {
       dailyLocation.lng
     );
 
+    // Calculate bearing
+    const bearing = calculateBearing(
+      guess.lat,
+      guess.lng,
+      dailyLocation.lat,
+      dailyLocation.lng
+    );
+    const direction = getCardinalDirection(bearing);
+
     // Fetch location name from Nominatim
     let guessName = guess.name;
     let guessAddress = null;
@@ -136,6 +145,8 @@ fastify.post("/api/guess", async (request, reply) => {
       lat: guess.lat,
       lng: guess.lng,
       distance: Math.round(distance),
+      bearing: Math.round(bearing),
+      direction: direction,
       timestamp: new Date().toISOString(),
       address: guessAddress,
     };
@@ -188,6 +199,31 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
 
 function toRad(degrees) {
   return degrees * (Math.PI / 180);
+}
+
+function toDeg(radians) {
+  return radians * (180 / Math.PI);
+}
+
+function calculateBearing(lat1, lon1, lat2, lon2) {
+  const startLat = toRad(lat1);
+  const startLon = toRad(lon1);
+  const destLat = toRad(lat2);
+  const destLon = toRad(lon2);
+
+  const y = Math.sin(destLon - startLon) * Math.cos(destLat);
+  const x =
+    Math.cos(startLat) * Math.sin(destLat) -
+    Math.sin(startLat) * Math.cos(destLat) * Math.cos(destLon - startLon);
+  let brng = Math.atan2(y, x);
+  brng = toDeg(brng);
+  return (brng + 360) % 360;
+}
+
+function getCardinalDirection(angle) {
+  const directions = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+  const index = Math.round(((angle %= 360) < 0 ? angle + 360 : angle) / 45) % 8;
+  return directions[index];
 }
 
 // Graceful shutdown
