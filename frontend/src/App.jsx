@@ -191,6 +191,18 @@ function App() {
     }
   };
 
+  const mapRef = useRef(null);
+
+  // Auto-scroll to map when in Discord
+  useEffect(() => {
+    if (isDiscord && !loading && mapRef.current) {
+      // Small delay to ensure layout is stable after loading screen removal
+      setTimeout(() => {
+        mapRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 500);
+    }
+  }, [isDiscord, loading]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
@@ -278,7 +290,7 @@ function App() {
           {/* Left Column - Map and Input */}
           <div className="lg:col-span-2 space-y-6">
             {/* Map */}
-            <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+            <div ref={mapRef} className="bg-white rounded-xl shadow-lg overflow-hidden">
               <div className="h-[600px]">
                 <GameMap
                   guesses={guesses}
