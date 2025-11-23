@@ -39,7 +39,6 @@ const DiscordActivityWrapper = ({ children }) => {
             state: "",
             prompt: "none",
             scope: ["identify", "guilds"],
-            redirect_uri: window.location.origin,
           });
 
           // Retrieve an access_token from your activity's server
