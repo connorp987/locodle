@@ -9,6 +9,7 @@ const DiscordContext = createContext({
   isDiscord: false,
   user: null,
   sdk: null,
+  trackEvent: () => {},
 });
 
 export const useDiscord = () => useContext(DiscordContext);
@@ -18,6 +19,33 @@ const DiscordActivityWrapper = ({ children }) => {
   const [error, setError] = useState(null);
   const [isDiscord, setIsDiscord] = useState(false);
   const [discordSdk, setDiscordSdk] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
+
+  // Analytics Helper
+  const trackEvent = async (eventName, params = {}) => {
+    if (isDiscord) {
+      // Send to Backend Proxy
+      try {
+        // Use relative URL for proxy
+        await fetch("/api/analytics", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            event_name: eventName,
+            params: params,
+            client_id: currentUser?.id || "anonymous_discord_user",
+          }),
+        });
+      } catch (e) {
+        console.error("Failed to send analytics", e);
+      }
+    } else {
+      // Standard Web GA
+      if (window.gtag) {
+        window.gtag("event", eventName, params);
+      }
+    }
+  };
 
   useEffect(() => {
     // Check if running in Discord
@@ -48,7 +76,25 @@ const DiscordActivityWrapper = ({ children }) => {
           // For now, we'll just assume success if we got a code
           setAuth({ code });
           
-          console.log("Discord SDK Ready", code);
+          // Authenticate with Backend (Optional for now, but good for user info)
+          const response = await fetch("/api/token", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              code,
+            }),
+          });
+          const { access_token } = await response.json();
+
+          // Authenticate with Discord Client
+          const auth = await sdk.commands.authenticate({
+            access_token,
+          });
+
+          setAuth(auth);
+          setCurrentUser(auth.user); // Save user for analytics
         } catch (e) {
           console.error("Discord SDK Error", e);
           setError(e);
@@ -87,7 +133,14 @@ const DiscordActivityWrapper = ({ children }) => {
   }
 
   return (
-    <DiscordContext.Provider value={{ isDiscord: true, user: null, sdk: discordSdk }}>
+    <DiscordContext.Provider
+      value={{
+        isDiscord,
+        user: currentUser,
+        sdk: discordSdk,
+        trackEvent,
+      }}
+    >
       {children}
     </DiscordContext.Provider>
   );

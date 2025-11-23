@@ -34,7 +34,7 @@ function App() {
   const [availableDates, setAvailableDates] = useState([]);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showResultModal, setShowResultModal] = useState(false);
-  const { isDiscord, sdk } = useDiscord();
+  const { isDiscord, sdk, trackEvent } = useDiscord();
 
   // Helper for fetching data that works in both browser and Discord
   const customFetch = async (url, options = {}) => {
@@ -52,6 +52,7 @@ function App() {
 
   useEffect(() => {
     loadAvailableDates();
+    trackEvent("page_view", { page_title: "Daily Challenge" });
   }, []);
 
   useEffect(() => {
@@ -157,6 +158,13 @@ function App() {
         let newWon = gameWon;
         let newAnswer = answer;
 
+        // Track Guess
+        trackEvent("guess", {
+          guess_number: guesses.length + 1,
+          distance: result.distance,
+          won: result.won,
+        });
+
         if (result.completed) {
           newCompleted = true;
           newWon = result.won;
@@ -164,6 +172,12 @@ function App() {
           setGameCompleted(true);
           setGameWon(result.won);
           setAnswer(result.answer);
+
+          // Track Game Completion
+          trackEvent("game_complete", {
+            won: result.won,
+            total_guesses: guesses.length + 1,
+          });
         } else {
           // Show result modal if game is not completed
           setShowResultModal(true);
