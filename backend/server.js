@@ -19,6 +19,7 @@ await fastify.register(cors, {
     "https://dependable-rebirth-production-4f9e.up.railway.app",
     "https://locodle.com",
     "https://www.locodle.com",
+    /\.discordsays\.com$/,
     process.env.FRONTEND_URL,
   ].filter(Boolean),
 });

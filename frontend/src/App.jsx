@@ -6,6 +6,7 @@ import GuessHistory from "./components/GuessHistory";
 import GameStats from "./components/GameStats";
 import HintsPanel from "./components/HintsPanel";
 import GuessResultModal from "./components/GuessResultModal";
+import { useDiscord } from "./components/DiscordActivityWrapper";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
 
@@ -33,6 +34,23 @@ function App() {
   const [availableDates, setAvailableDates] = useState([]);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showResultModal, setShowResultModal] = useState(false);
+  const { isDiscord, sdk } = useDiscord();
+
+  // Helper for fetching data that works in both browser and Discord
+  const customFetch = async (url, options = {}) => {
+    if (isDiscord && sdk) {
+      // Discord Proxy Fetch
+      // Note: Discord SDK fetch requires absolute URLs, which we already have in API_BASE_URL
+      const response = await sdk.commands.networking.fetch({
+        url,
+        ...options,
+      });
+      return response;
+    } else {
+      // Standard Browser Fetch
+      return fetch(url, options);
+    }
+  };
 
   useEffect(() => {
     loadAvailableDates();
@@ -70,7 +88,7 @@ function App() {
 
   const loadAvailableDates = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/days`);
+      const response = await customFetch(`${API_BASE_URL}/api/days`);
       const data = await response.json();
       setAvailableDates(data.dates || []);
     } catch (error) {
@@ -80,7 +98,7 @@ function App() {
 
   const loadDailyChallenge = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/daily-challenge?date=${currentDate}`);
+      const response = await customFetch(`${API_BASE_URL}/api/daily-challenge?date=${currentDate}`);
       if (!response.ok) throw new Error("Failed to load challenge");
       const data = await response.json();
       setChallenge(data);
@@ -120,7 +138,7 @@ function App() {
     const isLastGuess = guesses.length === 5;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/guess`, {
+      const response = await customFetch(`${API_BASE_URL}/api/guess`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
