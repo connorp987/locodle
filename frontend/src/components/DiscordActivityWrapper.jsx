@@ -1,0 +1,94 @@
+import { useEffect, useState, createContext, useContext } from "react";
+import { DiscordSDK } from "@discord/embedded-app-sdk";
+
+// Placeholder Client ID - User needs to replace this
+const DISCORD_CLIENT_ID = "1442219897131368508";
+
+// Create Context
+const DiscordContext = createContext({
+  isDiscord: false,
+  user: null,
+  sdk: null,
+});
+
+export const useDiscord = () => useContext(DiscordContext);
+
+const discordSdk = new DiscordSDK(DISCORD_CLIENT_ID);
+
+const DiscordActivityWrapper = ({ children }) => {
+  const [auth, setAuth] = useState(null);
+  const [error, setError] = useState(null);
+  const [isDiscord, setIsDiscord] = useState(false);
+
+  useEffect(() => {
+    // Check if running in Discord
+    const inDiscord = document.referrer.includes("discord.com");
+    setIsDiscord(inDiscord);
+
+    if (inDiscord) {
+      const setupDiscordSdk = async () => {
+        try {
+          await discordSdk.ready();
+
+          // Authorize with Discord Client
+          const { code } = await discordSdk.commands.authorize({
+            client_id: DISCORD_CLIENT_ID,
+            response_type: "code",
+            state: "",
+            prompt: "none",
+            scope: ["identify", "guilds"],
+          });
+
+          // Retrieve an access_token from your activity's server
+          // For single player demo, we might skip the full backend exchange initially
+          // but typically you'd POST the code to your backend here.
+          
+          // For now, we'll just assume success if we got a code
+          setAuth({ code });
+          
+          console.log("Discord SDK Ready", code);
+        } catch (e) {
+          console.error("Discord SDK Error", e);
+          setError(e);
+        }
+      };
+      setupDiscordSdk();
+    }
+  }, []);
+
+  // If not in Discord, render with isDiscord: false
+  if (!document.referrer.includes("discord.com")) {
+    return (
+      <DiscordContext.Provider value={{ isDiscord: false, user: null, sdk: null }}>
+        {children}
+      </DiscordContext.Provider>
+    );
+  }
+
+  if (error) {
+      return (
+          <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white p-4 text-center">
+              <div>
+                  <h2 className="text-xl font-bold mb-2">Discord Error</h2>
+                  <p className="text-gray-400">{error.message}</p>
+              </div>
+          </div>
+      )
+  }
+
+  if (!auth) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white">
+        <div className="animate-pulse">Loading Discord Activity...</div>
+      </div>
+    );
+  }
+
+  return (
+    <DiscordContext.Provider value={{ isDiscord: true, user: null, sdk: discordSdk }}>
+      {children}
+    </DiscordContext.Provider>
+  );
+};
+
+export default DiscordActivityWrapper;
