@@ -46,7 +46,7 @@ const GuessResultModal = ({ guess, onClose, useKm }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200 md:hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200 lg:hidden">
       <div className="w-full max-w-sm bg-white rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
         {/* Header */}
         <div className="bg-primary-600 px-6 py-4 flex items-center justify-between">
