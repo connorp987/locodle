@@ -107,7 +107,7 @@ const DiscordActivityWrapper = ({ children }) => {
   // If not in Discord, render with isDiscord: false
   if (!document.referrer.includes("discord.com")) {
     return (
-      <DiscordContext.Provider value={{ isDiscord: false, user: null, sdk: null }}>
+      <DiscordContext.Provider value={{ isDiscord: false, user: null, sdk: null, trackEvent }}>
         {children}
       </DiscordContext.Provider>
     );
