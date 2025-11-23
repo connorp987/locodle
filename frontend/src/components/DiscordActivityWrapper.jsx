@@ -13,12 +13,11 @@ const DiscordContext = createContext({
 
 export const useDiscord = () => useContext(DiscordContext);
 
-const discordSdk = new DiscordSDK(DISCORD_CLIENT_ID);
-
 const DiscordActivityWrapper = ({ children }) => {
   const [auth, setAuth] = useState(null);
   const [error, setError] = useState(null);
   const [isDiscord, setIsDiscord] = useState(false);
+  const [discordSdk, setDiscordSdk] = useState(null);
 
   useEffect(() => {
     // Check if running in Discord
@@ -26,12 +25,15 @@ const DiscordActivityWrapper = ({ children }) => {
     setIsDiscord(inDiscord);
 
     if (inDiscord) {
+      const sdk = new DiscordSDK(DISCORD_CLIENT_ID);
+      setDiscordSdk(sdk);
+
       const setupDiscordSdk = async () => {
         try {
-          await discordSdk.ready();
+          await sdk.ready();
 
           // Authorize with Discord Client
-          const { code } = await discordSdk.commands.authorize({
+          const { code } = await sdk.commands.authorize({
             client_id: DISCORD_CLIENT_ID,
             response_type: "code",
             state: "",
