@@ -5,6 +5,7 @@ import GuessInput from "./components/GuessInput";
 import GuessHistory from "./components/GuessHistory";
 import GameStats from "./components/GameStats";
 import HintsPanel from "./components/HintsPanel";
+import GuessResultModal from "./components/GuessResultModal";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
 
@@ -31,6 +32,7 @@ function App() {
   );
   const [availableDates, setAvailableDates] = useState([]);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showResultModal, setShowResultModal] = useState(false);
 
   useEffect(() => {
     loadAvailableDates();
@@ -146,6 +148,9 @@ function App() {
           setGameCompleted(true);
           setGameWon(result.won);
           setAnswer(result.answer);
+        } else {
+          // Show result modal if game is not completed
+          setShowResultModal(true);
         }
 
         // Save to local storage
@@ -352,6 +357,15 @@ function App() {
           <p>© 2024 Locodle. A daily geo-location guessing game.</p>
         </div>
       </footer>
+
+      {/* Result Modal */}
+      {showResultModal && !gameCompleted && guesses.length > 0 && (
+        <GuessResultModal
+          guess={guesses[guesses.length - 1]}
+          onClose={() => setShowResultModal(false)}
+          useKm={useKm}
+        />
+      )}
     </div>
   );
 }
