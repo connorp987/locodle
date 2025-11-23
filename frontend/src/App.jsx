@@ -38,14 +38,12 @@ function App() {
 
   // Helper for fetching data that works in both browser and Discord
   const customFetch = async (url, options = {}) => {
-    if (isDiscord && sdk) {
-      // Discord Proxy Fetch
-      // Note: Discord SDK fetch requires absolute URLs, which we already have in API_BASE_URL
-      const response = await sdk.commands.networking.fetch({
-        url,
-        ...options,
-      });
-      return response;
+    if (isDiscord) {
+      // In Discord, we must use relative URLs to satisfy CSP.
+      // Discord's proxy will route these based on the URL Mappings in the Developer Portal.
+      // We strip the API_BASE_URL to get the relative path (e.g. "/api/guess").
+      const relativeUrl = url.replace(API_BASE_URL, "");
+      return fetch(relativeUrl, options);
     } else {
       // Standard Browser Fetch
       return fetch(url, options);
