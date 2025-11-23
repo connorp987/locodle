@@ -185,13 +185,13 @@ function App() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       {/* Header */}
       <header className="bg-white shadow-md">
-        <div className="max-w-7xl mx-auto px-4 py-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <MapPin className="w-8 h-8 text-primary-600" />
-              <h1 className="text-3xl font-bold text-gray-900">Locodle</h1>
+        <div className="max-w-7xl mx-auto px-4 py-3 md:py-4">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-2 md:gap-0">
+            <div className="flex items-center gap-2 md:gap-3">
+              <MapPin className="w-6 h-6 md:w-8 md:h-8 text-primary-600" />
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Locodle</h1>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 w-full md:w-auto justify-center md:justify-end flex-wrap">
               <div className="relative">
                 <button
                   onClick={() => setShowDatePicker(!showDatePicker)}
@@ -329,6 +329,12 @@ function App() {
 
           {/* Right Column - Stats and History */}
           <div className="space-y-6">
+            {showHints && challenge?.hints && (
+              <HintsPanel hints={challenge.hints} />
+            )}
+
+            <GuessHistory guesses={guesses} useKm={useKm} />
+
             <GameStats
               guesses={guesses}
               maxGuesses={challenge?.maxGuesses || 6}
@@ -336,12 +342,6 @@ function App() {
               won={gameWon}
               useKm={useKm}
             />
-
-            {showHints && challenge?.hints && (
-              <HintsPanel hints={challenge.hints} />
-            )}
-
-            <GuessHistory guesses={guesses} useKm={useKm} />
           </div>
         </div>
       </main>
