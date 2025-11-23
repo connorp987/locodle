@@ -28,17 +28,21 @@
     <meta property="twitter:image" content="https://locodle.com/preview.png" />
     
     <meta name="theme-color" content="#4f46e5" />
-    <link
-      rel="stylesheet"
-      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    />
+
     <!-- Google Analytics -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-8V7LKZ4W98"></script>
+    <!-- Google Analytics (Only load if NOT in Discord) -->
     <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-      gtag('config', 'G-8V7LKZ4W98');
+      if (!document.referrer.includes("discord.com")) {
+        const script = document.createElement('script');
+        script.async = true;
+        script.src = "https://www.googletagmanager.com/gtag/js?id=G-8V7LKZ4W98";
+        document.head.appendChild(script);
+
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-8V7LKZ4W98');
+      }
     </script>
   </head>
   <body>

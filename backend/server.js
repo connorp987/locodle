@@ -177,6 +177,28 @@ fastify.post("/api/guess", async (request, reply) => {
   }
 });
 
+// Tile Proxy for Discord Activity (CSP Bypass)
+fastify.get("/api/tiles/:z/:x/:y", async (request, reply) => {
+  const { z, x, y } = request.params;
+  // Using CartoDB Voyager tiles (same as frontend)
+  const tileUrl = `https://basemaps.cartocdn.com/rastertiles/voyager/${z}/${x}/${y}.png`;
+
+  try {
+    const response = await fetch(tileUrl);
+    if (!response.ok) throw new Error(`Tile fetch failed: ${response.statusText}`);
+    
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    reply.header("Content-Type", "image/png");
+    reply.header("Cache-Control", "public, max-age=86400"); // Cache for 1 day
+    return reply.send(buffer);
+  } catch (error) {
+    fastify.log.error(`Tile proxy error: ${error.message}`);
+    return reply.code(500).send("Failed to fetch tile");
+  }
+});
+
 // Removed PATCH /api/guess/name as it is no longer needed
 
 // Removed stats endpoint as state is now client-side

@@ -73,6 +73,7 @@ const GameMap = ({
   onConfirm,
   isSubmitting,
   useKm = true,
+  isDiscord = false,
 }) => {
   const center = [20, 0]; // Center of the world
   const zoom = 2;
@@ -84,6 +85,11 @@ const GameMap = ({
 
   const distanceUnit = useKm ? "km" : "mi";
 
+  // Use local proxy if in Discord to avoid CSP issues
+  const tileUrl = isDiscord
+    ? "/api/tiles/{z}/{x}/{y}"
+    : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
+
   return (
     <div className="relative h-full w-full">
       <MapContainer
@@ -94,7 +100,7 @@ const GameMap = ({
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>'
-          url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+          url={tileUrl}
         />
 
         {/* Handle map clicks and show temp marker */}

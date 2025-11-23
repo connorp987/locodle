@@ -288,6 +288,7 @@ function App() {
                   isSubmitting={submitting}
                   tempMarker={tempMarker}
                   useKm={useKm}
+                  isDiscord={isDiscord}
                 />
               </div>
             </div>
