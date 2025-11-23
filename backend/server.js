@@ -17,6 +17,8 @@ await fastify.register(cors, {
     "http://localhost:3000",
     "http://localhost:5173",
     "https://dependable-rebirth-production-4f9e.up.railway.app",
+    "https://locodle.com",
+    "https://www.locodle.com",
     process.env.FRONTEND_URL,
   ].filter(Boolean),
 });
