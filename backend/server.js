@@ -30,27 +30,24 @@ await fastify.register(rateLimit, {
   timeWindow: 60 * 1000, // 1 minute
 });
 
-// Cache for today's location to avoid repeated DB queries
-let cachedLocation = null;
-let cacheDate = null;
+// Cache for locations by date to avoid repeated DB queries
+const locationCache = new Map();
 
 // Get daily location (same for all players on a given day)
 async function getDailyLocation(date = null) {
   const targetDate = date || new Date().toISOString().split("T")[0];
-  const today = new Date().toISOString().split("T")[0];
 
-  // Return cached location if it's still today and we're requesting today
-  if (!date && cachedLocation && cacheDate === today) {
-    return cachedLocation;
+  // Check in-memory cache first
+  if (locationCache.has(targetDate)) {
+    return locationCache.get(targetDate);
   }
 
   // Get or generate location from database
   const location = await getLocationForDate(targetDate);
   
-  // Only cache if it's today's location
-  if (!date || targetDate === today) {
-    cachedLocation = location;
-    cacheDate = today;
+  // Cache the result
+  if (location) {
+    locationCache.set(targetDate, location);
   }
 
   return location;
@@ -100,10 +97,82 @@ fastify.post("/api/guess", async (request, reply) => {
   }
 
   try {
-    const dailyLocation = await getDailyLocation(date);
+    // Parallelize DB fetch and Nominatim lookup for speed
+    const [dailyLocation, nominatimResult] = await Promise.all([
+      getDailyLocation(date),
+      (async () => {
+        // Helper to fetch with timeout
+        const fetchWithTimeout = async (url, timeoutMs) => {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+          try {
+            const res = await fetch(url, { 
+              headers: { "User-Agent": "Locodle/1.0" },
+              signal: controller.signal 
+            });
+            clearTimeout(timeoutId);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            return await res.json();
+          } catch (err) {
+            clearTimeout(timeoutId);
+            throw err;
+          }
+        };
+
+        // 1. Try Nominatim (Primary)
+        try {
+          const data = await fetchWithTimeout(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${guess.lat}&lon=${guess.lng}&addressdetails=1`,
+            1500 // 1.5s timeout
+          );
+          return {
+            name: data.display_name,
+            address: data.address
+          };
+        } catch (err) {
+          console.log("Nominatim failed/timed out, trying backup...");
+        }
+
+        // 2. Try BigDataCloud (Backup)
+        try {
+          const data = await fetchWithTimeout(
+            `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${guess.lat}&longitude=${guess.lng}&localityLanguage=en`,
+            5000 // 5s timeout
+          );
+          // Format BigDataCloud response to match our needs
+          const parts = [
+            data.locality,
+            data.city,
+            data.principalSubdivision,
+            data.countryName
+          ].filter(Boolean);
+          
+          return {
+            name: parts.join(", "),
+            address: {
+              city: data.city || data.locality,
+              state: data.principalSubdivision,
+              country: data.countryName,
+              country_code: data.countryCode?.toLowerCase()
+            }
+          };
+        } catch (err) {
+          console.error("All geocoding providers failed:", err);
+          return null;
+        }
+      })(),
+    ]);
 
     if (!dailyLocation) {
       return reply.code(404).send({ error: "No challenge found for this date" });
+    }
+
+    // Process Geocoding Result
+    let guessName = guess.name;
+    let guessAddress = null;
+    if (nominatimResult) {
+      if (nominatimResult.name) guessName = nominatimResult.name;
+      if (nominatimResult.address) guessAddress = nominatimResult.address;
     }
 
     // Calculate distance between guess and actual location
@@ -122,26 +191,6 @@ fastify.post("/api/guess", async (request, reply) => {
       dailyLocation.lng
     );
     const direction = getCardinalDirection(bearing);
-
-    // Fetch location name from Nominatim
-    let guessName = guess.name;
-    let guessAddress = null;
-    try {
-      const nominatimRes = await fetch(
-        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${guess.lat}&lon=${guess.lng}&addressdetails=1`,
-        { headers: { "User-Agent": "Locodle/1.0" } }
-      );
-      const nominatimData = await nominatimRes.json();
-      if (nominatimData.display_name) {
-        guessName = nominatimData.display_name;
-      }
-      if (nominatimData.address) {
-        guessAddress = nominatimData.address;
-      }
-    } catch (err) {
-      console.error("Failed to fetch location name from Nominatim:", err);
-      // Fallback to coordinate name if fetch fails, which is already in guess.name
-    }
 
     const guessResult = {
       guess: guessName,
