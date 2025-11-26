@@ -1,4 +1,5 @@
 import { Client, GatewayIntentBits, Events } from "discord.js";
+import pool from "../db/connection.js";
 
 let client = null;
 
@@ -45,8 +46,42 @@ export const initDiscordBot = async () => {
     if (!interaction.isChatInputCommand()) return;
 
     if (interaction.commandName === "leaderboard") {
-      // Placeholder for leaderboard logic
-      await interaction.reply("🏆 **Leaderboard**\nNo results yet for today! Be the first to play.");
+      try {
+        await interaction.deferReply(); // Defer reply to allow time for DB query
+
+        const today = new Date().toISOString().split("T")[0];
+        
+        // Query top 10 results for today
+        // Ordered by: Won (true first), Guesses (low to high), Score/Distance (low to high)
+        const result = await pool.query(
+          `SELECT u.username, r.score, r.guesses_count, r.won
+           FROM daily_results r
+           JOIN discord_users u ON r.user_id = u.id
+           WHERE r.date = $1
+           ORDER BY r.won DESC, r.guesses_count ASC, r.score ASC
+           LIMIT 10`,
+          [today]
+        );
+
+        if (result.rows.length === 0) {
+          await interaction.editReply("🏆 **Today's Leaderboard**\nNo results yet! Be the first to play.");
+          return;
+        }
+
+        let leaderboardMsg = `🏆 **Leaderboard for ${today}**\n\n`;
+        
+        result.rows.forEach((row, index) => {
+          const rank = index + 1;
+          const medal = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : `#${rank}`;
+          const status = row.won ? "✅" : "❌";
+          leaderboardMsg += `${medal} **${row.username}** ${status} - ${row.guesses_count} guesses (${row.score}km)\n`;
+        });
+
+        await interaction.editReply(leaderboardMsg);
+      } catch (error) {
+        console.error("Leaderboard error:", error);
+        await interaction.editReply("❌ Failed to fetch leaderboard.");
+      }
     }
   });
 
