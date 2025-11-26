@@ -144,6 +144,10 @@ function App() {
           guess: location,
           date: currentDate,
           isLastGuess,
+          guessCount: guesses.length + 1,
+          discord_user_id: sdk?.currentUser?.id,
+          username: sdk?.currentUser?.username,
+          avatar: sdk?.currentUser?.avatar,
         }),
       });
 

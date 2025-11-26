@@ -6,6 +6,10 @@ import {
   getAvailableDates,
 } from "./services/locationGenerator.js";
 import pool from "./db/connection.js";
+import { initDiscordBot } from "./services/discordBot.js";
+
+// Initialize Discord Bot
+initDiscordBot();
 
 const fastify = Fastify({
   logger: true,
@@ -207,6 +211,36 @@ fastify.post("/api/guess", async (request, reply) => {
     const won = distance < 50;
     const completed = won || isLastGuess; // Game over if won or it's the last guess
 
+    // Save result to DB if completed and user is from Discord
+    if (completed && request.body.discord_user_id) {
+      const { discord_user_id, username, avatar } = request.body;
+      try {
+        // Upsert user
+        await pool.query(
+          `INSERT INTO discord_users (id, username, avatar) 
+           VALUES ($1, $2, $3) 
+           ON CONFLICT (id) DO UPDATE SET username = $2, avatar = $3`,
+          [discord_user_id, username, avatar]
+        );
+
+        // Insert result (ignore if already exists for today)
+        await pool.query(
+          `INSERT INTO daily_results (user_id, date, score, guesses_count, won)
+           VALUES ($1, $2, $3, $4, $5)
+           ON CONFLICT (user_id, date) DO NOTHING`,
+          [
+            discord_user_id, 
+            date || new Date().toISOString().split("T")[0], 
+            Math.round(distance), 
+            request.body.guessCount || 6, 
+            won
+          ]
+        );
+      } catch (dbError) {
+        console.error("Failed to save Discord result:", dbError);
+      }
+    }
+
     return {
       ...guessResult,
       completed: completed,
@@ -217,6 +251,7 @@ fastify.post("/api/guess", async (request, reply) => {
             lat: dailyLocation.lat,
             lng: dailyLocation.lng,
             country: dailyLocation.country,
+            hints: dailyLocation.hints, // Return hints on completion so they can see what they missed
           }
         : null,
     };
