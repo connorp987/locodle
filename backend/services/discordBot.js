@@ -12,22 +12,36 @@ export const initDiscordBot = async () => {
   client = new Client({
     intents: [
       GatewayIntentBits.Guilds,
-      GatewayIntentBits.GuildMessages,
-      GatewayIntentBits.MessageContent,
+      // Removed MessageContent/GuildMessages to avoid "Disallowed Intents" error
+      // We will use Slash Commands instead, which don't require these privileged intents
     ],
   });
 
-  client.once(Events.ClientReady, (c) => {
+  client.once(Events.ClientReady, async (c) => {
     console.log(`🤖 Discord Bot ready! Logged in as ${c.user.tag}`);
+
+    // Register Slash Command
+    const data = [
+      {
+        name: "leaderboard",
+        description: "Show today's Locodle leaderboard",
+      },
+    ];
+
+    try {
+      await c.application.commands.set(data);
+      console.log("✅ Slash Commands registered");
+    } catch (error) {
+      console.error("❌ Failed to register commands:", error);
+    }
   });
 
-  client.on(Events.MessageCreate, async (message) => {
-    if (message.author.bot) return;
+  client.on(Events.InteractionCreate, async (interaction) => {
+    if (!interaction.isChatInputCommand()) return;
 
-    if (message.content === "!leaderboard" || message.content === "/leaderboard") {
+    if (interaction.commandName === "leaderboard") {
       // Placeholder for leaderboard logic
-      // In a real implementation, we would query the DB here
-      message.reply("🏆 **Leaderboard**\nNo results yet for today! Be the first to play.");
+      await interaction.reply("🏆 **Leaderboard**\nNo results yet for today! Be the first to play.");
     }
   });
 
