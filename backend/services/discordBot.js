@@ -21,16 +21,21 @@ export const initDiscordBot = async () => {
     console.log(`🤖 Discord Bot ready! Logged in as ${c.user.tag}`);
 
     // Register Slash Command
-    const data = [
-      {
-        name: "leaderboard",
-        description: "Show today's Locodle leaderboard",
-      },
-    ];
-
+    // We use .create() instead of .set() to avoid overwriting the "Entry Point" command
+    // which is required for Discord Activities.
     try {
-      await c.application.commands.set(data);
-      console.log("✅ Slash Commands registered");
+      const commands = await c.application.commands.fetch();
+      const hasLeaderboard = commands.some(cmd => cmd.name === "leaderboard");
+      
+      if (!hasLeaderboard) {
+        await c.application.commands.create({
+          name: "leaderboard",
+          description: "Show today's Locodle leaderboard",
+        });
+        console.log("✅ Slash Command '/leaderboard' registered");
+      } else {
+        console.log("✅ Slash Command '/leaderboard' already exists");
+      }
     } catch (error) {
       console.error("❌ Failed to register commands:", error);
     }
