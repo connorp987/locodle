@@ -311,11 +311,21 @@ function calculateBearing(lat1, lon1, lat2, lon2) {
   const destLat = toRad(lat2);
   const destLon = toRad(lon2);
 
-  const y = Math.sin(destLon - startLon) * Math.cos(destLat);
-  const x =
-    Math.cos(startLat) * Math.sin(destLat) -
-    Math.sin(startLat) * Math.cos(destLat) * Math.cos(destLon - startLon);
-  let brng = Math.atan2(y, x);
+  let dLon = destLon - startLon;
+  
+  // Project latitude difference (Mercator)
+  const dPhi = Math.log(Math.tan(destLat / 2 + Math.PI / 4) / Math.tan(startLat / 2 + Math.PI / 4));
+
+  // Handle dateline crossing
+  if (Math.abs(dLon) > Math.PI) {
+    if (dLon > 0) {
+      dLon = -(2 * Math.PI - dLon);
+    } else {
+      dLon = 2 * Math.PI + dLon;
+    }
+  }
+
+  let brng = Math.atan2(dLon, dPhi);
   brng = toDeg(brng);
   return (brng + 360) % 360;
 }
