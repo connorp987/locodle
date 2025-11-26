@@ -206,6 +206,7 @@ function App() {
   };
 
   const mapRef = useRef(null);
+  const datePickerRef = useRef(null);
 
   // Auto-scroll to map when in Discord
   useEffect(() => {
@@ -216,6 +217,26 @@ function App() {
       }, 500);
     }
   }, [isDiscord, loading]);
+
+  // Close date picker when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        datePickerRef.current &&
+        !datePickerRef.current.contains(event.target)
+      ) {
+        setShowDatePicker(false);
+      }
+    };
+
+    if (showDatePicker) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showDatePicker]);
 
   if (loading) {
     return (
@@ -239,7 +260,7 @@ function App() {
               <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Locodle</h1>
             </div>
             <div className="flex items-center gap-3 w-full md:w-auto justify-center md:justify-end flex-wrap">
-              <div className="relative">
+              <div className="relative" ref={datePickerRef}>
                 <button
                   onClick={() => setShowDatePicker(!showDatePicker)}
                   className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
