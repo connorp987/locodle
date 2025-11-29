@@ -8,12 +8,30 @@ const __dirname = path.dirname(__filename);
 
 async function initDb() {
   try {
-    const sqlPath = path.join(__dirname, "../db/init.sql");
-    const sql = fs.readFileSync(sqlPath, "utf8");
+    // 1. Run init.sql (Base Schema)
+    const initSqlPath = path.join(__dirname, "../db/init.sql");
+    const initSql = fs.readFileSync(initSqlPath, "utf8");
 
-    console.log("Running database initialization...");
-    await pool.query(sql);
-    console.log("✅ Database initialized successfully");
+    console.log("Running base database initialization...");
+    await pool.query(initSql);
+    console.log("✅ Base schema initialized");
+
+    // 2. Run Migrations
+    const migrationsDir = path.join(__dirname, "../db/migrations");
+    if (fs.existsSync(migrationsDir)) {
+      const files = fs.readdirSync(migrationsDir).sort(); // Ensure order
+      
+      for (const file of files) {
+        if (file.endsWith(".sql")) {
+          console.log(`Running migration: ${file}`);
+          const migrationSql = fs.readFileSync(path.join(migrationsDir, file), "utf8");
+          await pool.query(migrationSql);
+          console.log(`✅ Migration ${file} applied`);
+        }
+      }
+    }
+
+    console.log("✅ Database initialization complete");
     process.exit(0);
   } catch (error) {
     console.error("❌ Error initializing database:", error);
