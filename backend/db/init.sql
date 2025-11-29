@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS locations (
 );
 
 -- Create index for faster queries
-CREATE INDEX idx_locations_active ON locations(is_active);
+CREATE INDEX IF NOT EXISTS idx_locations_active ON locations(is_active);
 
 -- Insert initial locations
 INSERT INTO locations (name, lat, lng, country, hints) VALUES
@@ -74,5 +74,5 @@ CREATE TABLE IF NOT EXISTS game_sessions (
 );
 
 -- Create index for faster session lookups
-CREATE INDEX idx_game_sessions_session_id ON game_sessions(session_id);
-CREATE INDEX idx_game_sessions_date ON game_sessions(game_date);
+CREATE INDEX IF NOT EXISTS idx_game_sessions_session_id ON game_sessions(session_id);
+CREATE INDEX IF NOT EXISTS idx_game_sessions_date ON game_sessions(game_date);
