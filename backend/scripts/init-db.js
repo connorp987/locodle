@@ -37,7 +37,10 @@ async function initDb() {
     console.log("✅ Database initialization complete");
     process.exit(0);
   } catch (error) {
-    console.error("❌ Error initializing database:", error);
+    console.error("❌ FATAL ERROR initializing database:");
+    console.error(error.message);
+    if (error.stack) console.error(error.stack);
+    // Ensure we exit with 1 so the build fails explicitly
     process.exit(1);
   }
 }
