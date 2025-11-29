@@ -4,8 +4,8 @@ import dotenv from "dotenv";
 dotenv.config();
 
 const { Pool } = pg;
-
-const isProduction = process.env.NODE_ENV === "production" || process.env.DATABASE_URL;
+// Only use SSL if explicitly in production mode
+const isProduction = process.env.NODE_ENV === "production";
 
 const pool = new Pool({
   connectionString:
