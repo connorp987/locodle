@@ -80,7 +80,13 @@ export const initDiscordBot = async () => {
         await interaction.editReply(leaderboardMsg);
       } catch (error) {
         console.error("Leaderboard error:", error);
-        await interaction.editReply("❌ Failed to fetch leaderboard.");
+        // Only try to edit reply if we successfully deferred or replied
+        if (interaction.deferred || interaction.replied) {
+          await interaction.editReply("❌ Failed to fetch leaderboard.");
+        } else {
+          // If we failed before deferring (e.g. Unknown Interaction), we can't do anything
+          console.log("Could not reply to interaction (likely timed out or unknown).");
+        }
       }
     }
   });

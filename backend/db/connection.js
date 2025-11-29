@@ -5,10 +5,17 @@ dotenv.config();
 
 const { Pool } = pg;
 
+const isProduction = process.env.NODE_ENV === "production" || process.env.DATABASE_URL;
+
 const pool = new Pool({
   connectionString:
     process.env.DATABASE_URL ||
     "postgresql://locodle:locodle_dev_password@localhost:5432/locodle",
+  ssl: isProduction
+    ? {
+        rejectUnauthorized: false,
+      }
+    : false,
 });
 
 // Test connection

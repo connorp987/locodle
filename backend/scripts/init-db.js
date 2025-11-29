@@ -8,6 +8,9 @@ const __dirname = path.dirname(__filename);
 
 async function initDb() {
   try {
+    const dbUrl = process.env.DATABASE_URL || "local";
+    console.log(`Using database: ${dbUrl.includes("@") ? dbUrl.split("@")[1] : dbUrl}`);
+
     // 1. Run init.sql (Base Schema)
     const initSqlPath = path.join(__dirname, "../db/init.sql");
     const initSql = fs.readFileSync(initSqlPath, "utf8");
