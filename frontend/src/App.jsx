@@ -61,7 +61,7 @@ function App() {
 
   useEffect(() => {
     setLoading(true);
-    
+
     // Load game state from local storage
     const savedState = localStorage.getItem(`locodle-state-${currentDate}`);
     if (savedState) {
@@ -78,7 +78,7 @@ function App() {
       setAnswer(null);
     }
     setTempMarker(null);
-    
+
     loadDailyChallenge().finally(() => {
       setLoading(false);
     });
@@ -106,7 +106,9 @@ function App() {
 
   const loadDailyChallenge = async () => {
     try {
-      const response = await customFetch(`${API_BASE_URL}/api/daily-challenge?date=${currentDate}`);
+      const response = await customFetch(
+        `${API_BASE_URL}/api/daily-challenge?date=${currentDate}`
+      );
       if (!response.ok) throw new Error("Failed to load challenge");
       const data = await response.json();
       setChallenge(data);
@@ -126,7 +128,7 @@ function App() {
   const handleConfirmLocation = (latlng) => {
     // 1. Submit guess immediately with coordinates as name
     const coordinateName = `${latlng.lat.toFixed(4)}, ${latlng.lng.toFixed(4)}`;
-    
+
     // 2. Submit guess (backend will handle reverse geocoding)
     handleGuess({
       name: coordinateName,
@@ -138,7 +140,7 @@ function App() {
   const handleGuess = async (location) => {
     // Prevent double submissions
     if (isSubmitting.current || gameCompleted) return;
-    
+
     isSubmitting.current = true;
     setSubmitting(true);
 
@@ -270,7 +272,9 @@ function App() {
           <div className="flex flex-col md:flex-row items-center justify-between gap-2 md:gap-0">
             <div className="flex items-center gap-2 md:gap-3">
               <MapPin className="w-6 h-6 md:w-8 md:h-8 text-primary-600" />
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Locodle</h1>
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
+                Locodle
+              </h1>
             </div>
             <div className="flex items-center gap-3 w-full md:w-auto justify-center md:justify-end flex-wrap">
               <div className="relative" ref={datePickerRef}>
@@ -285,7 +289,9 @@ function App() {
                 {showDatePicker && (
                   <div className="absolute left-0 md:left-auto md:right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-100 z-50 overflow-hidden">
                     <div className="p-3 bg-gray-50 border-b border-gray-100">
-                      <h3 className="font-semibold text-gray-700">Select Date</h3>
+                      <h3 className="font-semibold text-gray-700">
+                        Select Date
+                      </h3>
                     </div>
                     <div className="max-h-64 overflow-y-auto">
                       {availableDates.map((date) => (
@@ -318,12 +324,14 @@ function App() {
               >
                 {useKm ? "km" : "mi"}
               </button>
-              
+
               <button
-                onClick={() => setGameMode(gameMode === "hard" ? "easy" : "hard")}
+                onClick={() =>
+                  setGameMode(gameMode === "hard" ? "easy" : "hard")
+                }
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors font-medium ${
-                  gameMode === "hard" 
-                    ? "bg-red-100 text-red-700 hover:bg-red-200" 
+                  gameMode === "hard"
+                    ? "bg-red-100 text-red-700 hover:bg-red-200"
                     : "bg-green-100 text-green-700 hover:bg-green-200"
                 }`}
               >
@@ -344,26 +352,31 @@ function App() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column - Map and Input */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Map */}
-            <div ref={mapRef} className="bg-white rounded-xl shadow-lg overflow-hidden">
-              <div className="h-[600px]">
-                <GameMap
-                  guesses={guesses}
-                  answer={answer}
-                  onMapClick={!gameCompleted ? handleMapClick : null}
-                  onConfirm={!gameCompleted ? handleConfirmLocation : null}
-                  isSubmitting={submitting}
-                  tempMarker={tempMarker}
-                  useKm={useKm}
-                  isDiscord={isDiscord}
-                />
-              </div>
-            </div>
+      <main className="max-w-7xl mx-auto px-4 py-8 space-y-6">
+        {/* Map Section - Full Width */}
+        <div
+          ref={mapRef}
+          className="bg-white rounded-xl shadow-lg overflow-hidden"
+        >
+          <div className="h-[600px]">
+            <GameMap
+              guesses={guesses}
+              answer={answer}
+              onMapClick={!gameCompleted ? handleMapClick : null}
+              onConfirm={!gameCompleted ? handleConfirmLocation : null}
+              isSubmitting={submitting}
+              tempMarker={tempMarker}
+              useKm={useKm}
+              isDiscord={isDiscord}
+              gameMode={gameMode}
+            />
+          </div>
+        </div>
 
+        {/* Bottom Section - Input and Stats */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Left Column - Input and Game Over */}
+          <div className="space-y-6">
             {/* Guess Input */}
             {!gameCompleted && (
               <GuessInput
@@ -410,7 +423,6 @@ function App() {
                       <span className="font-bold">{answer?.name}</span>,{" "}
                       {answer?.country}
                     </p>
-
                   </>
                 )}
                 <p className="text-gray-500 mt-4">
@@ -420,13 +432,11 @@ function App() {
             )}
           </div>
 
-          {/* Right Column - Stats and History */}
+          {/* Right Column - Stats and Hints */}
           <div className="space-y-6">
             {showHints && challenge?.hints && (
               <HintsPanel hints={challenge.hints} />
             )}
-
-            <GuessHistory guesses={guesses} useKm={useKm} gameMode={gameMode} />
 
             <GameStats
               guesses={guesses}
@@ -450,7 +460,12 @@ function App() {
       {showResultModal && !gameCompleted && guesses.length > 0 && (
         <GuessResultModal
           guess={guesses[guesses.length - 1]}
-          isHotter={guesses.length > 1 ? guesses[guesses.length - 1].distance < guesses[guesses.length - 2].distance : null}
+          isHotter={
+            guesses.length > 1
+              ? guesses[guesses.length - 1].distance <
+                guesses[guesses.length - 2].distance
+              : null
+          }
           onClose={() => setShowResultModal(false)}
           useKm={useKm}
           gameMode={gameMode}

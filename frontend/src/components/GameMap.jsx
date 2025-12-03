@@ -9,6 +9,7 @@ import {
 } from "react-leaflet";
 import { Icon } from "leaflet";
 import "leaflet/dist/leaflet.css";
+import GuessHistoryOverlay from "./GuessHistoryOverlay";
 
 // Fix for default marker icons in React-Leaflet
 import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
@@ -74,6 +75,7 @@ const GameMap = ({
   isSubmitting,
   useKm = true,
   isDiscord = false,
+  gameMode = "hard",
 }) => {
   const center = [20, 0]; // Center of the world
   const zoom = 2;
@@ -218,6 +220,9 @@ const GameMap = ({
           </button>
         </div>
       )}
+
+      {/* Guess History Overlay */}
+      <GuessHistoryOverlay guesses={guesses} useKm={useKm} gameMode={gameMode} />
     </div>
   );
 };

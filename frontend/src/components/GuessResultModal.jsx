@@ -1,7 +1,13 @@
 import React from "react";
 import { X, MapPin, Navigation } from "lucide-react";
 
-const GuessResultModal = ({ guess, isHotter, onClose, useKm, gameMode = "hard" }) => {
+const GuessResultModal = ({
+  guess,
+  isHotter,
+  onClose,
+  useKm,
+  gameMode = "hard",
+}) => {
   if (!guess) return null;
 
   const distanceUnit = useKm ? "km" : "mi";
@@ -59,11 +65,11 @@ const GuessResultModal = ({ guess, isHotter, onClose, useKm, gameMode = "hard" }
   const temperature = getTemperatureLabel(guess.distance);
 
   return (
-    <div 
-      className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
+    <div
+      className="fixed inset-0 z-[2000] flex items-center justify-center px-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
       onClick={onClose}
     >
-      <div 
+      <div
         className="w-full max-w-sm bg-white rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
@@ -117,7 +123,9 @@ const GuessResultModal = ({ guess, isHotter, onClose, useKm, gameMode = "hard" }
           </div>
 
           {/* Temperature Banner */}
-          <div className={`rounded-xl p-4 font-bold text-white flex items-center justify-center ${temperature.color}`}>
+          <div
+            className={`rounded-xl p-4 font-bold text-white flex items-center justify-center ${temperature.color}`}
+          >
             {temperature.text}
           </div>
 
@@ -125,7 +133,9 @@ const GuessResultModal = ({ guess, isHotter, onClose, useKm, gameMode = "hard" }
           {gameMode === "easy" && guess.direction && (
             <div className="bg-yellow-50 rounded-xl p-3 border border-yellow-100 text-yellow-800 font-medium flex items-center justify-center gap-2">
               <span>Target is to the {guess.direction}</span>
-              <span className="text-xl">{getDirectionArrow(guess.direction)}</span>
+              <span className="text-xl">
+                {getDirectionArrow(guess.direction)}
+              </span>
             </div>
           )}
 
