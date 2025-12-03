@@ -1,6 +1,16 @@
-import { TrendingDown } from "lucide-react";
+import { useState, useEffect } from "react";
+import { TrendingDown, ChevronUp, ChevronDown, History } from "lucide-react";
 
 const GuessHistoryOverlay = ({ guesses, useKm = true, gameMode = "hard" }) => {
+  const [isExpanded, setIsExpanded] = useState(true);
+
+  useEffect(() => {
+    // Default to collapsed on mobile
+    if (window.innerWidth < 768) {
+      setIsExpanded(false);
+    }
+  }, []);
+
   const convertDistance = (km) => {
     if (useKm) return km;
     return Math.round(km * 0.621371); // Convert to miles
@@ -64,80 +74,101 @@ const GuessHistoryOverlay = ({ guesses, useKm = true, gameMode = "hard" }) => {
     return firstPart;
   };
 
-  if (guesses.length === 0) {
+  if (!isExpanded) {
     return (
-      <div className="absolute top-4 right-4 w-80 bg-white/50 backdrop-blur-md rounded-xl shadow-2xl p-4 z-[400]">
-        <h3 className="text-sm font-bold text-gray-900 mb-2">Guess History</h3>
-        <p className="text-xs text-gray-500 text-center py-4">
-          No guesses yet. Click on the map or search!
-        </p>
-      </div>
+      <button
+        onClick={() => setIsExpanded(true)}
+        className="absolute top-4 right-4 z-[400] bg-white/90 backdrop-blur-md shadow-lg px-4 py-2 rounded-full flex items-center gap-2 text-sm font-bold text-gray-700 hover:bg-white transition-colors"
+      >
+        <History className="w-4 h-4" />
+        <span className="hidden xs:inline">History</span>
+        <span className="bg-primary-100 text-primary-700 px-2 py-0.5 rounded-full text-xs">
+          {guesses.length}
+        </span>
+        <ChevronDown className="w-4 h-4" />
+      </button>
     );
   }
 
   return (
-    <div className="absolute top-4 right-4 w-80 bg-white/50 backdrop-blur-md rounded-xl shadow-2xl z-[400] max-h-[500px] flex flex-col">
-      <div className="p-4 border-b border-gray-200">
-        <h3 className="text-sm font-bold text-gray-900">Guess History</h3>
-        <p className="text-xs text-gray-500">
-          {guesses.length} {guesses.length === 1 ? "guess" : "guesses"}
-        </p>
+    <div className="absolute top-4 right-4 w-[calc(100%-2rem)] md:w-80 bg-white/20 backdrop-blur-md rounded-xl shadow-2xl z-[400] max-h-[500px] flex flex-col transition-all duration-300">
+      <div className="p-4 border-b border-gray-200/50 flex items-center justify-between bg-white/40 rounded-t-xl">
+        <div>
+          <h3 className="text-sm font-bold text-gray-900">Guess History</h3>
+          <p className="text-xs text-gray-500">
+            {guesses.length} {guesses.length === 1 ? "guess" : "guesses"}
+          </p>
+        </div>
+        <button
+          onClick={() => setIsExpanded(false)}
+          className="p-1 hover:bg-black/5 rounded-lg transition-colors"
+        >
+          <ChevronUp className="w-5 h-5 text-gray-600" />
+        </button>
       </div>
 
-      <div className="overflow-y-auto flex-1 p-3 space-y-2">
-        {[...guesses].reverse().map((guess, index) => {
-          const temperature = getTemperatureLabel(guess.distance);
+      {guesses.length === 0 ? (
+        <div className="p-8 text-center">
+          <p className="text-xs text-gray-600 font-medium">
+            No guesses yet. Click on the map or search!
+          </p>
+        </div>
+      ) : (
+        <div className="overflow-y-auto flex-1 p-3 space-y-2">
+          {[...guesses].reverse().map((guess, index) => {
+            const temperature = getTemperatureLabel(guess.distance);
 
-          return (
-            <div
-              key={index}
-              className="border border-gray-200 rounded-lg p-3 hover:shadow-md transition-shadow bg-white"
-            >
-              <div className="flex items-start justify-between mb-1">
-                <div className="flex items-center gap-2 flex-1 min-w-0">
-                  <span className="flex items-center justify-center w-5 h-5 rounded-full bg-primary-600 text-white text-xs font-bold flex-shrink-0">
-                    {guesses.length - index}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium text-gray-900 text-xs truncate">
-                      {formatLocationName(guess)}
-                    </p>
-                    {guess.score !== undefined && (
-                      <p className="text-xs font-bold text-primary-600">
-                        {guess.score}
-                      </p>
-                    )}
-                  </div>
-                </div>
-                <span
-                  className={`text-xs font-bold px-2 py-0.5 rounded whitespace-nowrap ml-2 ${temperature.color}`}
-                >
-                  {temperature.text}
-                </span>
-              </div>
-
-              <div className="flex items-center gap-1 text-xs text-gray-600">
-                <TrendingDown className="w-3 h-3" />
-                <span>
-                  {convertDistance(guess.distance).toLocaleString()}{" "}
-                  {distanceUnit}
-                </span>
-                {guesses.length >= 2 &&
-                  guess.direction &&
-                  guess.distance >= 50 &&
-                  gameMode === "easy" && (
-                    <span
-                      className="ml-1 font-bold text-gray-700"
-                      title={`Direction: ${guess.direction}`}
-                    >
-                      {guess.direction} {getDirectionArrow(guess.direction)}
+            return (
+              <div
+                key={index}
+                className="border border-gray-200/50 rounded-lg p-3 hover:shadow-md transition-shadow bg-white/60"
+              >
+                <div className="flex items-start justify-between mb-1">
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <span className="flex items-center justify-center w-5 h-5 rounded-full bg-primary-600 text-white text-xs font-bold flex-shrink-0">
+                      {guesses.length - index}
                     </span>
-                  )}
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-gray-900 text-xs truncate">
+                        {formatLocationName(guess)}
+                      </p>
+                      {guess.score !== undefined && (
+                        <p className="text-xs font-bold text-primary-600">
+                          {guess.score}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <span
+                    className={`text-xs font-bold px-2 py-0.5 rounded whitespace-nowrap ml-2 ${temperature.color}`}
+                  >
+                    {temperature.text}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-1 text-xs text-gray-600">
+                  <TrendingDown className="w-3 h-3" />
+                  <span>
+                    {convertDistance(guess.distance).toLocaleString()}{" "}
+                    {distanceUnit}
+                  </span>
+                  {guesses.length >= 2 &&
+                    guess.direction &&
+                    guess.distance >= 50 &&
+                    gameMode === "easy" && (
+                      <span
+                        className="ml-1 font-bold text-gray-700"
+                        title={`Direction: ${guess.direction}`}
+                      >
+                        {guess.direction} {getDirectionArrow(guess.direction)}
+                      </span>
+                    )}
+                </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };
