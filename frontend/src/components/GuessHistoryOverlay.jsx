@@ -99,7 +99,7 @@ const GuessHistoryOverlay = ({ guesses, useKm = true, gameMode = "hard" }) => {
   }
 
   return (
-    <div className="absolute top-4 right-4 w-[calc(100%-2rem)] md:w-80 z-[400] flex flex-col gap-2">
+    <div className="absolute top-4 right-4 w-[calc(100%-5rem)] md:w-80 z-[400] flex flex-col gap-2">
       <div
         ref={scrollRef}
         className="flex flex-col gap-2 overflow-y-auto max-h-[168px] md:max-h-[256px] pr-1"
