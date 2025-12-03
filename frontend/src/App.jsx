@@ -38,6 +38,7 @@ function App() {
   const [availableDates, setAvailableDates] = useState([]);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showResultModal, setShowResultModal] = useState(false);
+  const [historyExpanded, setHistoryExpanded] = useState(true);
   const { isDiscord, sdk, trackEvent } = useDiscord();
 
   // Helper for fetching data that works in both browser and Discord
@@ -194,8 +195,10 @@ function App() {
             total_guesses: guesses.length + 1,
           });
         } else {
-          // Show result modal if game is not completed
-          // setShowResultModal(true);
+          // Show result modal if game is not completed and history is collapsed
+          if (!historyExpanded) {
+            setShowResultModal(true);
+          }
         }
 
         // Save to local storage
@@ -352,12 +355,9 @@ function App() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 py-8 space-y-6">
+      <main className="w-full pb-8">
         {/* Map Section - Full Width */}
-        <div
-          ref={mapRef}
-          className="bg-white rounded-xl shadow-lg overflow-hidden"
-        >
+        <div ref={mapRef} className="w-full shadow-lg relative z-0">
           <div className="h-[600px]">
             <GameMap
               guesses={guesses}
@@ -369,82 +369,86 @@ function App() {
               useKm={useKm}
               isDiscord={isDiscord}
               gameMode={gameMode}
+              isHistoryExpanded={historyExpanded}
+              onHistoryToggle={setHistoryExpanded}
             />
           </div>
         </div>
 
         {/* Bottom Section - Input and Stats */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Left Column - Input and Game Over */}
-          <div className="space-y-6">
-            {/* Guess Input */}
-            {!gameCompleted && (
-              <GuessInput
-                onGuess={handleGuess}
-                onConfirm={handleConfirmLocation}
-                disabled={gameCompleted}
-                guessCount={guesses.length}
-                maxGuesses={-1} // Unlimited
-                tempMarker={tempMarker}
-                onClearMarker={() => setTempMarker(null)}
+        <div className="max-w-7xl mx-auto px-4 mt-8 space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Left Column - Input and Game Over */}
+            <div className="space-y-6">
+              {/* Guess Input */}
+              {!gameCompleted && (
+                <GuessInput
+                  onGuess={handleGuess}
+                  onConfirm={handleConfirmLocation}
+                  disabled={gameCompleted}
+                  guessCount={guesses.length}
+                  maxGuesses={-1} // Unlimited
+                  tempMarker={tempMarker}
+                  onClearMarker={() => setTempMarker(null)}
+                />
+              )}
+
+              {/* Game Over Message */}
+              {gameCompleted && (
+                <div
+                  className={`bg-white rounded-xl shadow-lg p-6 text-center ${
+                    gameWon
+                      ? "border-4 border-green-500"
+                      : "border-4 border-red-500"
+                  }`}
+                >
+                  {gameWon ? (
+                    <>
+                      <Trophy className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
+                      <h2 className="text-3xl font-bold text-green-600 mb-2">
+                        Congratulations! 🎉
+                      </h2>
+                      <p className="text-xl text-gray-700">
+                        You found{" "}
+                        <span className="font-bold">{answer?.name}</span>,{" "}
+                        {answer?.country} in {guesses.length}{" "}
+                        {guesses.length === 1 ? "guess" : "guesses"}!
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <Target className="w-16 h-16 text-red-500 mx-auto mb-4" />
+                      <h2 className="text-3xl font-bold text-red-600 mb-2">
+                        Game Over
+                      </h2>
+                      <p className="text-xl text-gray-700">
+                        The answer was{" "}
+                        <span className="font-bold">{answer?.name}</span>,{" "}
+                        {answer?.country}
+                      </p>
+                    </>
+                  )}
+                  <p className="text-gray-500 mt-4">
+                    Come back tomorrow for a new challenge!
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Right Column - Stats and Hints */}
+            <div className="space-y-6">
+              {showHints && challenge?.hints && (
+                <HintsPanel hints={challenge.hints} />
+              )}
+
+              <GameStats
+                guesses={guesses}
+                maxGuesses={-1}
+                completed={gameCompleted}
+                won={gameWon}
+                useKm={useKm}
               />
-            )}
-
-            {/* Game Over Message */}
-            {gameCompleted && (
-              <div
-                className={`bg-white rounded-xl shadow-lg p-6 text-center ${
-                  gameWon
-                    ? "border-4 border-green-500"
-                    : "border-4 border-red-500"
-                }`}
-              >
-                {gameWon ? (
-                  <>
-                    <Trophy className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
-                    <h2 className="text-3xl font-bold text-green-600 mb-2">
-                      Congratulations! 🎉
-                    </h2>
-                    <p className="text-xl text-gray-700">
-                      You found{" "}
-                      <span className="font-bold">{answer?.name}</span>,{" "}
-                      {answer?.country} in {guesses.length}{" "}
-                      {guesses.length === 1 ? "guess" : "guesses"}!
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <Target className="w-16 h-16 text-red-500 mx-auto mb-4" />
-                    <h2 className="text-3xl font-bold text-red-600 mb-2">
-                      Game Over
-                    </h2>
-                    <p className="text-xl text-gray-700">
-                      The answer was{" "}
-                      <span className="font-bold">{answer?.name}</span>,{" "}
-                      {answer?.country}
-                    </p>
-                  </>
-                )}
-                <p className="text-gray-500 mt-4">
-                  Come back tomorrow for a new challenge!
-                </p>
-              </div>
-            )}
-          </div>
-
-          {/* Right Column - Stats and Hints */}
-          <div className="space-y-6">
-            {showHints && challenge?.hints && (
-              <HintsPanel hints={challenge.hints} />
-            )}
-
-            <GameStats
-              guesses={guesses}
-              maxGuesses={-1}
-              completed={gameCompleted}
-              won={gameWon}
-              useKm={useKm}
-            />
+            </div>
           </div>
         </div>
       </main>

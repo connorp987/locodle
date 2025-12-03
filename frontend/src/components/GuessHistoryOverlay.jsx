@@ -1,14 +1,14 @@
 import { useState, useEffect, useRef } from "react";
 import { TrendingDown, ChevronUp, ChevronDown, History } from "lucide-react";
 
-const GuessHistoryOverlay = ({ guesses, useKm = true, gameMode = "hard" }) => {
-  const [isExpanded, setIsExpanded] = useState(true);
+const GuessHistoryOverlay = ({
+  guesses,
+  useKm = true,
+  gameMode = "hard",
+  isExpanded,
+  onToggleExpand,
+}) => {
   const scrollRef = useRef(null);
-
-  useEffect(() => {
-    // Default to expanded on all devices
-    setIsExpanded(true);
-  }, []);
 
   // Scroll to top when new guesses are added
   useEffect(() => {
@@ -83,7 +83,7 @@ const GuessHistoryOverlay = ({ guesses, useKm = true, gameMode = "hard" }) => {
   if (!isExpanded) {
     return (
       <button
-        onClick={() => setIsExpanded(true)}
+        onClick={() => onToggleExpand(true)}
         className="absolute top-4 right-4 z-[400] bg-white/90 backdrop-blur-md shadow-lg px-4 py-2 rounded-full flex items-center gap-2 text-sm font-bold text-gray-700 hover:bg-white transition-colors"
       >
         <History className="w-4 h-4" />
@@ -100,7 +100,7 @@ const GuessHistoryOverlay = ({ guesses, useKm = true, gameMode = "hard" }) => {
     <div className="absolute top-4 right-4 w-[calc(100%-5rem)] md:w-80 z-[400] flex flex-col gap-2">
       {/* Minimize Button */}
       <button
-        onClick={() => setIsExpanded(false)}
+        onClick={() => onToggleExpand(false)}
         className="absolute -top-3 -right-1 z-50 bg-white shadow-md border border-gray-100 p-1.5 rounded-full text-gray-600 hover:bg-gray-50"
       >
         <ChevronUp className="w-4 h-4" />

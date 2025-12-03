@@ -76,6 +76,8 @@ const GameMap = ({
   useKm = true,
   isDiscord = false,
   gameMode = "hard",
+  isHistoryExpanded,
+  onHistoryToggle,
 }) => {
   const center = [20, 0]; // Center of the world
   const zoom = 2;
@@ -222,7 +224,13 @@ const GameMap = ({
       )}
 
       {/* Guess History Overlay */}
-      <GuessHistoryOverlay guesses={guesses} useKm={useKm} gameMode={gameMode} />
+      <GuessHistoryOverlay
+        guesses={guesses}
+        useKm={useKm}
+        gameMode={gameMode}
+        isExpanded={isHistoryExpanded}
+        onToggleExpand={onHistoryToggle}
+      />
     </div>
   );
 };
