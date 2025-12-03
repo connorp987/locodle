@@ -287,7 +287,7 @@ function App() {
                 </button>
 
                 {showDatePicker && (
-                  <div className="absolute left-0 md:left-auto md:right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-100 z-50 overflow-hidden">
+                  <div className="absolute left-0 md:left-auto md:right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-100 z-[1000] overflow-hidden">
                     <div className="p-3 bg-gray-50 border-b border-gray-100">
                       <h3 className="font-semibold text-gray-700">
                         Select Date

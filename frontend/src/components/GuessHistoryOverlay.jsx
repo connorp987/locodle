@@ -66,7 +66,7 @@ const GuessHistoryOverlay = ({ guesses, useKm = true, gameMode = "hard" }) => {
 
   if (guesses.length === 0) {
     return (
-      <div className="absolute top-4 right-4 w-80 bg-white/80 backdrop-blur-md rounded-xl shadow-2xl p-4 z-[400]">
+      <div className="absolute top-4 right-4 w-80 bg-white/50 backdrop-blur-md rounded-xl shadow-2xl p-4 z-[400]">
         <h3 className="text-sm font-bold text-gray-900 mb-2">Guess History</h3>
         <p className="text-xs text-gray-500 text-center py-4">
           No guesses yet. Click on the map or search!
@@ -76,7 +76,7 @@ const GuessHistoryOverlay = ({ guesses, useKm = true, gameMode = "hard" }) => {
   }
 
   return (
-    <div className="absolute top-4 right-4 w-80 bg-white/80 backdrop-blur-md rounded-xl shadow-2xl z-[400] max-h-[500px] flex flex-col">
+    <div className="absolute top-4 right-4 w-80 bg-white/50 backdrop-blur-md rounded-xl shadow-2xl z-[400] max-h-[500px] flex flex-col">
       <div className="p-4 border-b border-gray-200">
         <h3 className="text-sm font-bold text-gray-900">Guess History</h3>
         <p className="text-xs text-gray-500">
