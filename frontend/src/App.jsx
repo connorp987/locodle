@@ -28,6 +28,10 @@ function App() {
     const stored = localStorage.getItem("locodle-use-km");
     return stored ? JSON.parse(stored) : false; // Default to Miles (false)
   });
+  const [gameMode, setGameMode] = useState(() => {
+    const stored = localStorage.getItem("locodle-game-mode");
+    return stored || "hard"; // Default to Hard mode
+  });
   const [currentDate, setCurrentDate] = useState(
     new Date().toISOString().split("T")[0]
   );
@@ -85,6 +89,11 @@ function App() {
     localStorage.setItem("locodle-use-km", JSON.stringify(useKm));
   }, [useKm]);
 
+  // Save game mode preference
+  useEffect(() => {
+    localStorage.setItem("locodle-game-mode", gameMode);
+  }, [gameMode]);
+
   const loadAvailableDates = async () => {
     try {
       const response = await customFetch(`${API_BASE_URL}/api/days`);
@@ -109,7 +118,7 @@ function App() {
   // Removed loadGameState as we now use localStorage
 
   const handleMapClick = (latlng) => {
-    if (!gameCompleted && guesses.length < 6) {
+    if (!gameCompleted) {
       setTempMarker(latlng);
     }
   };
@@ -127,14 +136,14 @@ function App() {
   };
 
   const handleGuess = async (location) => {
-    // Prevent double submissions or extra guesses
-    if (isSubmitting.current || gameCompleted || guesses.length >= 6) return;
+    // Prevent double submissions
+    if (isSubmitting.current || gameCompleted) return;
     
     isSubmitting.current = true;
     setSubmitting(true);
 
-    // Check if this is the last allowed guess (6th guess, index 5)
-    const isLastGuess = guesses.length === 5;
+    // Unlimited guesses, so never "last guess" based on count
+    const isLastGuess = false;
 
     try {
       const response = await customFetch(`${API_BASE_URL}/api/guess`, {
@@ -309,6 +318,17 @@ function App() {
               >
                 {useKm ? "km" : "mi"}
               </button>
+              
+              <button
+                onClick={() => setGameMode(gameMode === "hard" ? "easy" : "hard")}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors font-medium ${
+                  gameMode === "hard" 
+                    ? "bg-red-100 text-red-700 hover:bg-red-200" 
+                    : "bg-green-100 text-green-700 hover:bg-green-200"
+                }`}
+              >
+                {gameMode === "hard" ? "🔥 Hard" : "😊 Easy"}
+              </button>
               <button
                 onClick={() => setShowHints(!showHints)}
                 className="flex items-center gap-2 px-4 py-2 bg-primary-100 text-primary-700 rounded-lg hover:bg-primary-200 transition-colors"
@@ -351,7 +371,7 @@ function App() {
                 onConfirm={handleConfirmLocation}
                 disabled={gameCompleted}
                 guessCount={guesses.length}
-                maxGuesses={challenge?.maxGuesses || 6}
+                maxGuesses={-1} // Unlimited
                 tempMarker={tempMarker}
                 onClearMarker={() => setTempMarker(null)}
               />
@@ -406,11 +426,11 @@ function App() {
               <HintsPanel hints={challenge.hints} />
             )}
 
-            <GuessHistory guesses={guesses} useKm={useKm} />
+            <GuessHistory guesses={guesses} useKm={useKm} gameMode={gameMode} />
 
             <GameStats
               guesses={guesses}
-              maxGuesses={challenge?.maxGuesses || 6}
+              maxGuesses={-1}
               completed={gameCompleted}
               won={gameWon}
               useKm={useKm}
@@ -432,6 +452,7 @@ function App() {
           guess={guesses[guesses.length - 1]}
           onClose={() => setShowResultModal(false)}
           useKm={useKm}
+          gameMode={gameMode}
         />
       )}
     </div>

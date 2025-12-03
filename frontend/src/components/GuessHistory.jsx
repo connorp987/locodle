@@ -1,6 +1,6 @@
 import { MapPin, TrendingDown } from "lucide-react";
 
-const GuessHistory = ({ guesses, useKm = true }) => {
+const GuessHistory = ({ guesses, useKm = true, gameMode = "hard" }) => {
   const convertDistance = (km) => {
     if (useKm) return km;
     return Math.round(km * 0.621371); // Convert to miles
@@ -22,17 +22,19 @@ const GuessHistory = ({ guesses, useKm = true }) => {
   }
 
   const getDistanceColor = (distance) => {
-    if (distance < 50) return "text-green-600 bg-green-50";
-    if (distance < 500) return "text-orange-600 bg-orange-50";
-    if (distance < 2000) return "text-yellow-600 bg-yellow-50";
-    return "text-red-600 bg-red-50";
+    if (distance < 50) return "text-green-600 bg-green-50"; // Found!
+    if (distance < 500) return "text-red-600 bg-red-50"; // Hot
+    if (distance < 1500) return "text-orange-600 bg-orange-50"; // Warm
+    if (distance < 3000) return "text-yellow-600 bg-yellow-50"; // Cool
+    return "text-blue-600 bg-blue-50"; // Cold
   };
 
   const getDistanceEmoji = (distance) => {
     if (distance < 50) return "🎯";
     if (distance < 500) return "🔥";
-    if (distance < 2000) return "👍";
-    return "🌍";
+    if (distance < 1500) return "🥵";
+    if (distance < 3000) return "😎";
+    return "🥶";
   };
 
   const getDirectionArrow = (direction) => {
@@ -117,7 +119,7 @@ const GuessHistory = ({ guesses, useKm = true }) => {
               <TrendingDown className="w-4 h-4" />
               {convertDistance(guess.distance).toLocaleString()} {distanceUnit}{" "}
               away
-              {guesses.length >= 2 && guess.direction && guess.distance >= 50 && (
+              {guesses.length >= 2 && guess.direction && guess.distance >= 50 && gameMode === "easy" && (
                 <span className="ml-2 font-bold text-gray-700" title={`Direction: ${guess.direction}`}>
                   {guess.direction} {getDirectionArrow(guess.direction)}
                 </span>

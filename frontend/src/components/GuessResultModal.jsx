@@ -1,7 +1,7 @@
 import React from "react";
 import { X, MapPin, Navigation } from "lucide-react";
 
-const GuessResultModal = ({ guess, onClose, useKm }) => {
+const GuessResultModal = ({ guess, onClose, useKm, gameMode = "hard" }) => {
   if (!guess) return null;
 
   const distanceUnit = useKm ? "km" : "mi";
@@ -95,15 +95,26 @@ const GuessResultModal = ({ guess, onClose, useKm }) => {
             </div>
             <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
               <p className="text-xs text-gray-500 uppercase font-bold mb-1">
-                Direction
+                {gameMode === "easy" ? "Direction" : "Temperature"}
               </p>
               <div className="flex items-center justify-center gap-2">
-                <p className="text-2xl font-black text-primary-600">
-                  {guess.direction || "?"}
-                </p>
-                <span className="text-2xl">
-                  {getDirectionArrow(guess.direction)}
-                </span>
+                {gameMode === "easy" ? (
+                  <>
+                    <p className="text-2xl font-black text-primary-600">
+                      {guess.direction || "?"}
+                    </p>
+                    <span className="text-2xl">
+                      {getDirectionArrow(guess.direction)}
+                    </span>
+                  </>
+                ) : (
+                  <span className="text-4xl">
+                    {distance < 50 ? "🎯" : 
+                     distance < 500 ? "🔥" : 
+                     distance < 1500 ? "🥵" : 
+                     distance < 3000 ? "😎" : "🥶"}
+                  </span>
+                )}
               </div>
             </div>
           </div>

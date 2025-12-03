@@ -24,19 +24,14 @@ const GameStats = ({ guesses, maxGuesses, completed, won, useKm = true }) => {
       <div className="space-y-4">
         {/* Guesses Progress */}
         <div>
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-gray-700">
-              Guesses Used
-            </span>
-            <span className="text-sm font-bold text-primary-600">
-              {guesses.length} / {maxGuesses}
-            </span>
-          </div>
-          <div className="w-full bg-gray-200 rounded-full h-2.5">
-            <div
-              className="bg-primary-600 h-2.5 rounded-full transition-all duration-300"
-              style={{ width: `${(guesses.length / maxGuesses) * 100}%` }}
-            />
+          <div className="bg-white rounded-xl shadow-lg p-6 flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500 font-medium">Total Guesses</p>
+              <p className="text-2xl font-bold text-gray-900">{guesses.length}</p>
+            </div>
+            <div className="w-12 h-12 bg-primary-50 rounded-full flex items-center justify-center">
+              <Target className="w-6 h-6 text-primary-600" />
+            </div>
           </div>
         </div>
 
