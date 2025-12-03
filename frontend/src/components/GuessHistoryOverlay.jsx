@@ -1,12 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { TrendingDown, ChevronUp, ChevronDown, History } from "lucide-react";
 
 const GuessHistoryOverlay = ({ guesses, useKm = true, gameMode = "hard" }) => {
   const [isExpanded, setIsExpanded] = useState(true);
-  // When expanded (or desktop), show cards
-  // If not fully expanded (just showing top 3), we limit height/overflow
-  // If fully expanded (user clicked "View All"), we show scroll
-  const [showAll, setShowAll] = useState(false);
+  const scrollRef = useRef(null);
 
   useEffect(() => {
     // Default to collapsed on mobile
@@ -14,6 +11,13 @@ const GuessHistoryOverlay = ({ guesses, useKm = true, gameMode = "hard" }) => {
       setIsExpanded(false);
     }
   }, []);
+
+  // Scroll to top when new guesses are added
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [guesses]);
 
   const convertDistance = (km) => {
     if (useKm) return km;
@@ -94,27 +98,21 @@ const GuessHistoryOverlay = ({ guesses, useKm = true, gameMode = "hard" }) => {
     );
   }
 
-  const displayedGuesses = showAll
-    ? [...guesses].reverse()
-    : [...guesses].reverse().slice(0, 2);
-  const hasMore = guesses.length > 2;
-
   return (
     <div className="absolute top-4 right-4 w-[calc(100%-2rem)] md:w-80 z-[400] flex flex-col gap-2">
       <div
-        className={`flex flex-col gap-2 ${
-          showAll ? "max-h-[500px] overflow-y-auto pr-1" : ""
-        }`}
+        ref={scrollRef}
+        className="flex flex-col gap-2 overflow-y-auto max-h-[168px] md:max-h-[256px] pr-1"
       >
-        {displayedGuesses.map((guess, index) => {
+        {[...guesses].reverse().map((guess, index) => {
           const temperature = getTemperatureLabel(guess.distance);
           // Calculate actual index for numbering (reverse)
-          const actualIndex = guesses.length - (showAll ? index : index);
+          const actualIndex = guesses.length - index;
 
           return (
             <div
               key={index}
-              className="border border-gray-200/50 rounded-lg p-3 shadow-sm bg-white/90 backdrop-blur-sm hover:bg-white transition-colors"
+              className="border border-gray-200/50 rounded-lg p-3 shadow-sm bg-white/90 backdrop-blur-sm hover:bg-white transition-colors shrink-0"
             >
               <div className="flex items-start justify-between mb-1">
                 <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -162,44 +160,13 @@ const GuessHistoryOverlay = ({ guesses, useKm = true, gameMode = "hard" }) => {
         })}
       </div>
 
-      {hasMore && (
-        <button
-          onClick={() => setShowAll(!showAll)}
-          className="self-center bg-white/90 backdrop-blur-md shadow-lg px-4 py-1.5 rounded-full text-xs font-bold text-gray-700 hover:bg-white transition-colors flex items-center gap-1"
-        >
-          {showAll ? (
-            <>
-              Show Less <ChevronUp className="w-3 h-3" />
-            </>
-          ) : (
-            <>
-              View All ({guesses.length}) <ChevronDown className="w-3 h-3" />
-            </>
-          )}
-        </button>
-      )}
-
-      {!isExpanded && (
-        <button
-          onClick={() => setIsExpanded(false)} // This logic seems inverted or unused based on new design, let's fix if needed.
-          // Actually, the "isExpanded" state handles the mobile toggle.
-          // If we are here, isExpanded is true.
-          // On mobile, we might want a way to fully collapse back to the pill.
-          // Let's add a minimize button if we are on mobile?
-          // Or just rely on the "View All" toggle for height management.
-          className=""
-        />
-      )}
-
-      {/* Mobile Minimize Button (only if we are in expanded mode on mobile) */}
-      {window.innerWidth < 768 && (
-        <button
-          onClick={() => setIsExpanded(false)}
-          className="self-end bg-white/90 backdrop-blur-md shadow p-2 rounded-full text-gray-700 hover:bg-white mt-2"
-        >
-          <ChevronUp className="w-4 h-4" />
-        </button>
-      )}
+      {/* Minimize Button */}
+      <button
+        onClick={() => setIsExpanded(false)}
+        className="self-end bg-white/90 backdrop-blur-md shadow p-2 rounded-full text-gray-700 hover:bg-white mt-2"
+      >
+        <ChevronUp className="w-4 h-4" />
+      </button>
     </div>
   );
 };
