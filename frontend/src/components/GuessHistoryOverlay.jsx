@@ -3,6 +3,10 @@ import { TrendingDown, ChevronUp, ChevronDown, History } from "lucide-react";
 
 const GuessHistoryOverlay = ({ guesses, useKm = true, gameMode = "hard" }) => {
   const [isExpanded, setIsExpanded] = useState(true);
+  // When expanded (or desktop), show cards
+  // If not fully expanded (just showing top 3), we limit height/overflow
+  // If fully expanded (user clicked "View All"), we show scroll
+  const [showAll, setShowAll] = useState(false);
 
   useEffect(() => {
     // Default to collapsed on mobile
@@ -90,84 +94,111 @@ const GuessHistoryOverlay = ({ guesses, useKm = true, gameMode = "hard" }) => {
     );
   }
 
+  const displayedGuesses = showAll
+    ? [...guesses].reverse()
+    : [...guesses].reverse().slice(0, 2);
+  const hasMore = guesses.length > 2;
+
   return (
-    <div className="absolute top-4 right-4 w-[calc(100%-2rem)] md:w-80 bg-white/20 backdrop-blur-md rounded-xl shadow-2xl z-[400] max-h-[500px] flex flex-col transition-all duration-300">
-      <div className="p-4 border-b border-gray-200/50 flex items-center justify-between bg-white/40 rounded-t-xl">
-        <div>
-          <h3 className="text-sm font-bold text-gray-900">Guess History</h3>
-          <p className="text-xs text-gray-500">
-            {guesses.length} {guesses.length === 1 ? "guess" : "guesses"}
-          </p>
-        </div>
-        <button
-          onClick={() => setIsExpanded(false)}
-          className="p-1 hover:bg-black/5 rounded-lg transition-colors"
-        >
-          <ChevronUp className="w-5 h-5 text-gray-600" />
-        </button>
+    <div className="absolute top-4 right-4 w-[calc(100%-2rem)] md:w-80 z-[400] flex flex-col gap-2">
+      <div
+        className={`flex flex-col gap-2 ${
+          showAll ? "max-h-[500px] overflow-y-auto pr-1" : ""
+        }`}
+      >
+        {displayedGuesses.map((guess, index) => {
+          const temperature = getTemperatureLabel(guess.distance);
+          // Calculate actual index for numbering (reverse)
+          const actualIndex = guesses.length - (showAll ? index : index);
+
+          return (
+            <div
+              key={index}
+              className="border border-gray-200/50 rounded-lg p-3 shadow-sm bg-white/90 backdrop-blur-sm hover:bg-white transition-colors"
+            >
+              <div className="flex items-start justify-between mb-1">
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <span className="flex items-center justify-center w-5 h-5 rounded-full bg-primary-600 text-white text-xs font-bold flex-shrink-0">
+                    {actualIndex}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-gray-900 text-xs truncate">
+                      {formatLocationName(guess)}
+                    </p>
+                    {guess.score !== undefined && (
+                      <p className="text-xs font-bold text-primary-600">
+                        {guess.score}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <span
+                  className={`text-xs font-bold px-2 py-0.5 rounded whitespace-nowrap ml-2 ${temperature.color}`}
+                >
+                  {temperature.text}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-1 text-xs text-gray-600">
+                <TrendingDown className="w-3 h-3" />
+                <span>
+                  {convertDistance(guess.distance).toLocaleString()}{" "}
+                  {distanceUnit}
+                </span>
+                {guesses.length >= 2 &&
+                  guess.direction &&
+                  guess.distance >= 50 &&
+                  gameMode === "easy" && (
+                    <span
+                      className="ml-1 font-bold text-gray-700"
+                      title={`Direction: ${guess.direction}`}
+                    >
+                      {guess.direction} {getDirectionArrow(guess.direction)}
+                    </span>
+                  )}
+              </div>
+            </div>
+          );
+        })}
       </div>
 
-      {guesses.length === 0 ? (
-        <div className="p-8 text-center">
-          <p className="text-xs text-gray-600 font-medium">
-            No guesses yet. Click on the map or search!
-          </p>
-        </div>
-      ) : (
-        <div className="overflow-y-auto flex-1 p-3 space-y-2">
-          {[...guesses].reverse().map((guess, index) => {
-            const temperature = getTemperatureLabel(guess.distance);
+      {hasMore && (
+        <button
+          onClick={() => setShowAll(!showAll)}
+          className="self-center bg-white/90 backdrop-blur-md shadow-lg px-4 py-1.5 rounded-full text-xs font-bold text-gray-700 hover:bg-white transition-colors flex items-center gap-1"
+        >
+          {showAll ? (
+            <>
+              Show Less <ChevronUp className="w-3 h-3" />
+            </>
+          ) : (
+            <>
+              View All ({guesses.length}) <ChevronDown className="w-3 h-3" />
+            </>
+          )}
+        </button>
+      )}
 
-            return (
-              <div
-                key={index}
-                className="border border-gray-200/50 rounded-lg p-3 hover:shadow-md transition-shadow bg-white/60"
-              >
-                <div className="flex items-start justify-between mb-1">
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <span className="flex items-center justify-center w-5 h-5 rounded-full bg-primary-600 text-white text-xs font-bold flex-shrink-0">
-                      {guesses.length - index}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium text-gray-900 text-xs truncate">
-                        {formatLocationName(guess)}
-                      </p>
-                      {guess.score !== undefined && (
-                        <p className="text-xs font-bold text-primary-600">
-                          {guess.score}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <span
-                    className={`text-xs font-bold px-2 py-0.5 rounded whitespace-nowrap ml-2 ${temperature.color}`}
-                  >
-                    {temperature.text}
-                  </span>
-                </div>
+      {!isExpanded && (
+        <button
+          onClick={() => setIsExpanded(false)} // This logic seems inverted or unused based on new design, let's fix if needed.
+          // Actually, the "isExpanded" state handles the mobile toggle.
+          // If we are here, isExpanded is true.
+          // On mobile, we might want a way to fully collapse back to the pill.
+          // Let's add a minimize button if we are on mobile?
+          // Or just rely on the "View All" toggle for height management.
+          className=""
+        />
+      )}
 
-                <div className="flex items-center gap-1 text-xs text-gray-600">
-                  <TrendingDown className="w-3 h-3" />
-                  <span>
-                    {convertDistance(guess.distance).toLocaleString()}{" "}
-                    {distanceUnit}
-                  </span>
-                  {guesses.length >= 2 &&
-                    guess.direction &&
-                    guess.distance >= 50 &&
-                    gameMode === "easy" && (
-                      <span
-                        className="ml-1 font-bold text-gray-700"
-                        title={`Direction: ${guess.direction}`}
-                      >
-                        {guess.direction} {getDirectionArrow(guess.direction)}
-                      </span>
-                    )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+      {/* Mobile Minimize Button (only if we are in expanded mode on mobile) */}
+      {window.innerWidth < 768 && (
+        <button
+          onClick={() => setIsExpanded(false)}
+          className="self-end bg-white/90 backdrop-blur-md shadow p-2 rounded-full text-gray-700 hover:bg-white mt-2"
+        >
+          <ChevronUp className="w-4 h-4" />
+        </button>
       )}
     </div>
   );

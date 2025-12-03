@@ -195,7 +195,7 @@ function App() {
           });
         } else {
           // Show result modal if game is not completed
-          setShowResultModal(true);
+          // setShowResultModal(true);
         }
 
         // Save to local storage
