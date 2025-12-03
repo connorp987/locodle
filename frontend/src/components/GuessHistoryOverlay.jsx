@@ -6,10 +6,8 @@ const GuessHistoryOverlay = ({ guesses, useKm = true, gameMode = "hard" }) => {
   const scrollRef = useRef(null);
 
   useEffect(() => {
-    // Default to collapsed on mobile
-    if (window.innerWidth < 768) {
-      setIsExpanded(false);
-    }
+    // Default to expanded on all devices
+    setIsExpanded(true);
   }, []);
 
   // Scroll to top when new guesses are added
@@ -100,6 +98,14 @@ const GuessHistoryOverlay = ({ guesses, useKm = true, gameMode = "hard" }) => {
 
   return (
     <div className="absolute top-4 right-4 w-[calc(100%-5rem)] md:w-80 z-[400] flex flex-col gap-2">
+      {/* Minimize Button */}
+      <button
+        onClick={() => setIsExpanded(false)}
+        className="absolute -top-3 -right-1 z-50 bg-white shadow-md border border-gray-100 p-1.5 rounded-full text-gray-600 hover:bg-gray-50"
+      >
+        <ChevronUp className="w-4 h-4" />
+      </button>
+
       <div
         ref={scrollRef}
         className="flex flex-col gap-2 overflow-y-auto max-h-[168px] md:max-h-[256px] pr-1"
@@ -159,14 +165,6 @@ const GuessHistoryOverlay = ({ guesses, useKm = true, gameMode = "hard" }) => {
           );
         })}
       </div>
-
-      {/* Minimize Button */}
-      <button
-        onClick={() => setIsExpanded(false)}
-        className="self-end bg-white/90 backdrop-blur-md shadow p-2 rounded-full text-gray-700 hover:bg-white mt-2"
-      >
-        <ChevronUp className="w-4 h-4" />
-      </button>
     </div>
   );
 };
