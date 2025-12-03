@@ -196,11 +196,19 @@ fastify.post("/api/guess", async (request, reply) => {
     );
     const direction = getCardinalDirection(bearing);
 
+    // Calculate score (-20 to 100)
+    // Max distance is approx 20,000 km
+    // 0 km = 100
+    // 20,000 km = -20
+    // Formula: 100 - (distance / 20000) * 120
+    const score = Math.round((100 - (distance / 20000) * 120) * 10) / 10;
+
     const guessResult = {
       guess: guessName,
       lat: guess.lat,
       lng: guess.lng,
       distance: Math.round(distance),
+      score: score,
       bearing: Math.round(bearing),
       direction: direction,
       timestamp: new Date().toISOString(),
@@ -209,7 +217,7 @@ fastify.post("/api/guess", async (request, reply) => {
 
     // Check if won (within 50km)
     const won = distance < 50;
-    const completed = won || isLastGuess; // Game over if won or it's the last guess
+    const completed = won; // Game over only if won (unlimited guesses)
 
     // Save result to DB if completed and user is from Discord
     if (completed && request.body.discord_user_id) {

@@ -339,7 +339,7 @@ function App() {
             </div>
           </div>
           <p className="text-gray-600 mt-2">
-            Guess the famous location in 6 tries or less!
+            Guess the famous location! Unlimited tries.
           </p>
         </div>
       </header>
@@ -450,6 +450,7 @@ function App() {
       {showResultModal && !gameCompleted && guesses.length > 0 && (
         <GuessResultModal
           guess={guesses[guesses.length - 1]}
+          isHotter={guesses.length > 1 ? guesses[guesses.length - 1].distance < guesses[guesses.length - 2].distance : null}
           onClose={() => setShowResultModal(false)}
           useKm={useKm}
           gameMode={gameMode}

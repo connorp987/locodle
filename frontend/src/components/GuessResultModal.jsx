@@ -1,13 +1,24 @@
 import React from "react";
 import { X, MapPin, Navigation } from "lucide-react";
 
-const GuessResultModal = ({ guess, onClose, useKm, gameMode = "hard" }) => {
+const GuessResultModal = ({ guess, isHotter, onClose, useKm, gameMode = "hard" }) => {
   if (!guess) return null;
 
   const distanceUnit = useKm ? "km" : "mi";
   const distance = useKm
     ? Math.round(guess.distance)
     : Math.round(guess.distance * 0.621371);
+
+  // Helper to get temperature label
+  const getTemperatureLabel = (distance) => {
+    if (distance < 50) return { text: "Perfect!", color: "bg-green-500" };
+    if (distance < 500) return { text: "Fire", color: "bg-red-500" };
+    if (distance < 1500) return { text: "Hot", color: "bg-orange-500" };
+    if (distance < 3000) return { text: "Warm", color: "bg-yellow-500" };
+    if (distance < 6000) return { text: "Chilly", color: "bg-blue-400" };
+    if (distance < 10000) return { text: "Cold", color: "bg-blue-600" };
+    return { text: "Freezing", color: "bg-indigo-700" };
+  };
 
   // Helper to get arrow emoji
   const getDirectionArrow = (direction) => {
@@ -44,6 +55,8 @@ const GuessResultModal = ({ guess, onClose, useKm, gameMode = "hard" }) => {
     }
     return firstPart;
   };
+
+  const temperature = getTemperatureLabel(guess.distance);
 
   return (
     <div 
@@ -95,29 +108,26 @@ const GuessResultModal = ({ guess, onClose, useKm, gameMode = "hard" }) => {
             </div>
             <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
               <p className="text-xs text-gray-500 uppercase font-bold mb-1">
-                {gameMode === "easy" ? "Direction" : "Temperature"}
+                Score
               </p>
-              <div className="flex items-center justify-center gap-2">
-                {gameMode === "easy" ? (
-                  <>
-                    <p className="text-2xl font-black text-primary-600">
-                      {guess.direction || "?"}
-                    </p>
-                    <span className="text-2xl">
-                      {getDirectionArrow(guess.direction)}
-                    </span>
-                  </>
-                ) : (
-                  <span className="text-4xl">
-                    {distance < 50 ? "🎯" : 
-                     distance < 500 ? "🔥" : 
-                     distance < 1500 ? "🥵" : 
-                     distance < 3000 ? "😎" : "🥶"}
-                  </span>
-                )}
-              </div>
+              <p className="text-2xl font-black text-primary-600">
+                {guess.score !== undefined ? guess.score : "?"}
+              </p>
             </div>
           </div>
+
+          {/* Temperature Banner */}
+          <div className={`rounded-xl p-4 font-bold text-white flex items-center justify-center ${temperature.color}`}>
+            {temperature.text}
+          </div>
+
+          {/* Direction Hint (Easy Mode) */}
+          {gameMode === "easy" && guess.direction && (
+            <div className="bg-yellow-50 rounded-xl p-3 border border-yellow-100 text-yellow-800 font-medium flex items-center justify-center gap-2">
+              <span>Target is to the {guess.direction}</span>
+              <span className="text-xl">{getDirectionArrow(guess.direction)}</span>
+            </div>
+          )}
 
           {/* Action Button */}
           <button
