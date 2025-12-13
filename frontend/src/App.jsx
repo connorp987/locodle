@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from "react";
-import { MapPin, Trophy, Target, Info, Calendar } from "lucide-react";
+import { MapPin, Trophy, Target, Info, Calendar, LogOut } from "lucide-react";
 import GameMap from "./components/GameMap";
 import GuessInput from "./components/GuessInput";
 import GuessHistory from "./components/GuessHistory";
 import GameStats from "./components/GameStats";
 import HintsPanel from "./components/HintsPanel";
 import GuessResultModal from "./components/GuessResultModal";
+import UserStatsModal from "./components/UserStatsModal";
 import { useDiscord } from "./components/DiscordActivityWrapper";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
@@ -39,7 +40,8 @@ function App() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showResultModal, setShowResultModal] = useState(false);
   const [historyExpanded, setHistoryExpanded] = useState(true);
-  const { isDiscord, sdk, trackEvent } = useDiscord();
+  const [showStatsModal, setShowStatsModal] = useState(false);
+  const { isDiscord, sdk, trackEvent, user, logout } = useDiscord();
 
   // Helper for fetching data that works in both browser and Discord
   const customFetch = async (url, options = {}) => {
@@ -60,10 +62,11 @@ function App() {
     trackEvent("page_view", { page_title: "Daily Challenge" });
   }, []);
 
+  // Load game state when date changes
   useEffect(() => {
     setLoading(true);
 
-    // Load game state from local storage
+    // Load game state from local storage first (instant)
     const savedState = localStorage.getItem(`locodle-state-${currentDate}`);
     if (savedState) {
       const parsed = JSON.parse(savedState);
@@ -84,6 +87,68 @@ function App() {
       setLoading(false);
     });
   }, [currentDate]);
+
+  // Sync guesses from server when user becomes available (cross-device sync)
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const syncServerGuesses = async () => {
+      try {
+        const response = await customFetch(
+          `${API_BASE_URL}/api/user/${user.id}/guesses/${currentDate}`
+        );
+        if (!response.ok) return;
+
+        const data = await response.json();
+        const serverGuesses = data.guesses || [];
+        if (serverGuesses.length === 0) return;
+
+        // Get current local state
+        const savedState = localStorage.getItem(`locodle-state-${currentDate}`);
+        const localGuesses = savedState
+          ? JSON.parse(savedState).guesses || []
+          : [];
+
+        // If server has more guesses than local, use server data
+        if (serverGuesses.length > localGuesses.length) {
+          // Transform server format to match local format
+          const transformedGuesses = serverGuesses.map((g) => ({
+            guess: g.location_name,
+            lat: parseFloat(g.lat),
+            lng: parseFloat(g.lng),
+            distance: g.distance,
+            score: parseFloat(g.score),
+            direction: g.direction,
+            timestamp: g.timestamp,
+          }));
+
+          setGuesses(transformedGuesses);
+
+          // Check if last guess was a win (distance < 50km)
+          const lastGuess = transformedGuesses[transformedGuesses.length - 1];
+          if (lastGuess && lastGuess.distance < 50) {
+            setGameCompleted(true);
+            setGameWon(true);
+          }
+
+          // Update localStorage with server data
+          localStorage.setItem(
+            `locodle-state-${currentDate}`,
+            JSON.stringify({
+              guesses: transformedGuesses,
+              completed: lastGuess?.distance < 50,
+              won: lastGuess?.distance < 50,
+              answer: null,
+            })
+          );
+        }
+      } catch (error) {
+        console.error("Failed to sync server guesses:", error);
+      }
+    };
+
+    syncServerGuesses();
+  }, [user?.id, currentDate]);
 
   // Save unit preference when it changes
   useEffect(() => {
@@ -157,9 +222,9 @@ function App() {
           date: currentDate,
           isLastGuess,
           guessCount: guesses.length + 1,
-          discord_user_id: sdk?.currentUser?.id,
-          username: sdk?.currentUser?.username,
-          avatar: sdk?.currentUser?.avatar,
+          discord_user_id: user?.id,
+          username: user?.username,
+          avatar: user?.avatar,
         }),
       });
 
@@ -272,20 +337,51 @@ function App() {
       {/* Header */}
       <header className="bg-white shadow-md">
         <div className="max-w-7xl mx-auto px-4 py-3 md:py-4">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-2 md:gap-0">
+          {/* Top row: Logo + User */}
+          <div className="flex items-center justify-between mb-2 md:mb-0">
             <div className="flex items-center gap-2 md:gap-3">
               <MapPin className="w-6 h-6 md:w-8 md:h-8 text-primary-600" />
               <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
                 Locodle
               </h1>
             </div>
-            <div className="flex items-center gap-3 w-full md:w-auto justify-center md:justify-end flex-wrap">
+            {/* User Avatar - always visible on right */}
+            {user && (
+              <div className="flex items-center gap-2 md:hidden">
+                <img
+                  src={
+                    user.avatar
+                      ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`
+                      : `https://cdn.discordapp.com/embed/avatars/${
+                          parseInt(user.id) % 5
+                        }.png`
+                  }
+                  alt={user.username}
+                  className="w-8 h-8 rounded-full"
+                />
+                {!isDiscord && (
+                  <button
+                    onClick={logout}
+                    className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    title="Logout"
+                  >
+                    <LogOut className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Controls row */}
+          <div className="flex items-center gap-2 md:gap-3 flex-wrap justify-center md:justify-between">
+            {/* Game controls */}
+            <div className="flex items-center gap-2 flex-wrap justify-center">
               <div className="relative" ref={datePickerRef}>
                 <button
                   onClick={() => setShowDatePicker(!showDatePicker)}
-                  className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
+                  className="flex items-center gap-1.5 px-3 py-1.5 md:px-4 md:py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors shadow-sm text-sm md:text-base"
                 >
-                  <Calendar className="w-5 h-5 text-primary-600" />
+                  <Calendar className="w-4 h-4 md:w-5 md:h-5 text-primary-600" />
                   <span className="font-medium">{currentDate}</span>
                 </button>
 
@@ -323,7 +419,7 @@ function App() {
 
               <button
                 onClick={() => setUseKm(!useKm)}
-                className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                className="px-3 py-1.5 md:px-4 md:py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm md:text-base"
               >
                 {useKm ? "km" : "mi"}
               </button>
@@ -332,7 +428,7 @@ function App() {
                 onClick={() =>
                   setGameMode(gameMode === "hard" ? "easy" : "hard")
                 }
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors font-medium ${
+                className={`px-3 py-1.5 md:px-4 md:py-2 rounded-lg transition-colors font-medium text-sm md:text-base ${
                   gameMode === "hard"
                     ? "bg-red-100 text-red-700 hover:bg-red-200"
                     : "bg-green-100 text-green-700 hover:bg-green-200"
@@ -340,16 +436,60 @@ function App() {
               >
                 {gameMode === "hard" ? "🔥 Hard" : "😊 Easy"}
               </button>
+
               <button
                 onClick={() => setShowHints(!showHints)}
-                className="flex items-center gap-2 px-4 py-2 bg-primary-100 text-primary-700 rounded-lg hover:bg-primary-200 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 md:px-4 md:py-2 bg-primary-100 text-primary-700 rounded-lg hover:bg-primary-200 transition-colors text-sm md:text-base"
               >
-                <Info className="w-5 h-5" />
-                {showHints ? "Hide" : "Show"} Hints
+                <Info className="w-4 h-4 md:w-5 md:h-5" />
+                <span className="hidden sm:inline">
+                  {showHints ? "Hide" : "Show"}
+                </span>{" "}
+                Hints
               </button>
+
+              {user && (
+                <button
+                  onClick={() => setShowStatsModal(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 md:px-4 md:py-2 bg-yellow-100 text-yellow-700 rounded-lg hover:bg-yellow-200 transition-colors text-sm md:text-base"
+                >
+                  <Trophy className="w-4 h-4 md:w-5 md:h-5" />
+                  Stats
+                </button>
+              )}
             </div>
+
+            {/* Desktop user section */}
+            {user && (
+              <div className="hidden md:flex items-center gap-2 pl-3 border-l border-gray-200">
+                <img
+                  src={
+                    user.avatar
+                      ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`
+                      : `https://cdn.discordapp.com/embed/avatars/${
+                          parseInt(user.id) % 5
+                        }.png`
+                  }
+                  alt={user.username}
+                  className="w-8 h-8 rounded-full"
+                />
+                <span className="text-sm font-medium text-gray-700">
+                  {user.username}
+                </span>
+                {!isDiscord && (
+                  <button
+                    onClick={logout}
+                    className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    title="Logout"
+                  >
+                    <LogOut className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            )}
           </div>
-          <p className="text-gray-600 mt-2">
+
+          <p className="text-gray-600 mt-2 text-sm md:text-base text-center md:text-left">
             Guess the famous location! Unlimited tries.
           </p>
         </div>
@@ -473,6 +613,15 @@ function App() {
           onClose={() => setShowResultModal(false)}
           useKm={useKm}
           gameMode={gameMode}
+        />
+      )}
+
+      {/* User Stats Modal */}
+      {showStatsModal && user && (
+        <UserStatsModal
+          user={user}
+          isDiscord={isDiscord}
+          onClose={() => setShowStatsModal(false)}
         />
       )}
     </div>

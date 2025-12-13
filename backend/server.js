@@ -30,7 +30,7 @@ await fastify.register(cors, {
 
 // Rate limiting
 await fastify.register(rateLimit, {
-  max: 20,
+  max: 80,
   timeWindow: 60 * 1000, // 1 minute
 });
 
@@ -48,7 +48,7 @@ async function getDailyLocation(date = null) {
 
   // Get or generate location from database
   const location = await getLocationForDate(targetDate);
-  
+
   // Cache the result
   if (location) {
     locationCache.set(targetDate, location);
@@ -78,7 +78,9 @@ fastify.get("/api/daily-challenge", async (request, reply) => {
     const dailyLocation = await getDailyLocation(date);
 
     if (!dailyLocation) {
-      return reply.code(404).send({ error: "No challenge found for this date" });
+      return reply
+        .code(404)
+        .send({ error: "No challenge found for this date" });
     }
 
     // Return location without revealing the answer
@@ -110,9 +112,9 @@ fastify.post("/api/guess", async (request, reply) => {
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
           try {
-            const res = await fetch(url, { 
+            const res = await fetch(url, {
               headers: { "User-Agent": "Locodle/1.0" },
-              signal: controller.signal 
+              signal: controller.signal,
             });
             clearTimeout(timeoutId);
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -131,7 +133,7 @@ fastify.post("/api/guess", async (request, reply) => {
           );
           return {
             name: data.display_name,
-            address: data.address
+            address: data.address,
           };
         } catch (err) {
           console.log("Nominatim failed/timed out, trying backup...");
@@ -148,17 +150,17 @@ fastify.post("/api/guess", async (request, reply) => {
             data.locality,
             data.city,
             data.principalSubdivision,
-            data.countryName
+            data.countryName,
           ].filter(Boolean);
-          
+
           return {
             name: parts.join(", "),
             address: {
               city: data.city || data.locality,
               state: data.principalSubdivision,
               country: data.countryName,
-              country_code: data.countryCode?.toLowerCase()
-            }
+              country_code: data.countryCode?.toLowerCase(),
+            },
           };
         } catch (err) {
           console.error("All geocoding providers failed:", err);
@@ -168,7 +170,9 @@ fastify.post("/api/guess", async (request, reply) => {
     ]);
 
     if (!dailyLocation) {
-      return reply.code(404).send({ error: "No challenge found for this date" });
+      return reply
+        .code(404)
+        .send({ error: "No challenge found for this date" });
     }
 
     // Process Geocoding Result
@@ -219,9 +223,11 @@ fastify.post("/api/guess", async (request, reply) => {
     const won = distance < 50;
     const completed = won; // Game over only if won (unlimited guesses)
 
-    // Save result to DB if completed and user is from Discord
-    if (completed && request.body.discord_user_id) {
+    // Save guess to DB if user is logged in
+    if (request.body.discord_user_id) {
       const { discord_user_id, username, avatar } = request.body;
+      const gameDate = date || new Date().toISOString().split("T")[0];
+
       try {
         // Upsert user
         await pool.query(
@@ -231,21 +237,40 @@ fastify.post("/api/guess", async (request, reply) => {
           [discord_user_id, username, avatar]
         );
 
-        // Insert result (ignore if already exists for today)
+        // Save individual guess
         await pool.query(
-          `INSERT INTO daily_results (user_id, date, score, guesses_count, won)
-           VALUES ($1, $2, $3, $4, $5)
-           ON CONFLICT (user_id, date) DO NOTHING`,
+          `INSERT INTO user_guesses (user_id, date, guess_number, lat, lng, location_name, distance, score, direction)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
           [
-            discord_user_id, 
-            date || new Date().toISOString().split("T")[0], 
-            Math.round(distance), 
-            request.body.guessCount || 6, 
-            won
+            discord_user_id,
+            gameDate,
+            request.body.guessCount || 1,
+            guess.lat,
+            guess.lng,
+            guessName,
+            Math.round(distance),
+            score,
+            direction,
           ]
         );
+
+        // If game completed, save to daily_results
+        if (completed) {
+          await pool.query(
+            `INSERT INTO daily_results (user_id, date, score, guesses_count, won)
+             VALUES ($1, $2, $3, $4, $5)
+             ON CONFLICT (user_id, date) DO NOTHING`,
+            [
+              discord_user_id,
+              gameDate,
+              Math.round(distance),
+              request.body.guessCount || 1,
+              won,
+            ]
+          );
+        }
       } catch (dbError) {
-        console.error("Failed to save Discord result:", dbError);
+        console.error("Failed to save guess:", dbError);
       }
     }
 
@@ -277,8 +302,9 @@ fastify.get("/api/tiles/:z/:x/:y", async (request, reply) => {
 
   try {
     const response = await fetch(tileUrl);
-    if (!response.ok) throw new Error(`Tile fetch failed: ${response.statusText}`);
-    
+    if (!response.ok)
+      throw new Error(`Tile fetch failed: ${response.statusText}`);
+
     const arrayBuffer = await response.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
@@ -293,34 +319,83 @@ fastify.get("/api/tiles/:z/:x/:y", async (request, reply) => {
 
 // Discord Token Exchange
 fastify.post("/api/token", async (request, reply) => {
-  const { code } = request.body;
-  
+  const { code, redirect_uri } = request.body;
+
   if (!code) {
     return reply.code(400).send({ error: "Missing code" });
   }
 
   try {
+    // Build token exchange params
+    const tokenParams = {
+      client_id: process.env.DISCORD_CLIENT_ID,
+      client_secret: process.env.DISCORD_CLIENT_SECRET,
+      grant_type: "authorization_code",
+      code: code,
+    };
+
+    // Add redirect_uri if provided (for web OAuth flow)
+    // Strip trailing slash to ensure consistency
+    if (redirect_uri) {
+      tokenParams.redirect_uri = redirect_uri.replace(/\/+$/, "");
+    }
+
     const response = await fetch("https://discord.com/api/oauth2/token", {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
       },
-      body: new URLSearchParams({
-        client_id: process.env.DISCORD_CLIENT_ID,
-        client_secret: process.env.DISCORD_CLIENT_SECRET,
-        grant_type: "authorization_code",
-        code: code,
-      }),
+      body: new URLSearchParams(tokenParams),
     });
 
     const data = await response.json();
 
     if (!response.ok) {
+      console.error(
+        "❌ Discord Token Exchange Failed:",
+        "Status:",
+        response.status,
+        "Response:",
+        JSON.stringify(data),
+        "Sent Params:",
+        JSON.stringify({
+          ...tokenParams,
+          client_secret: "[REDACTED]",
+          code: "[REDACTED]",
+        })
+      );
       fastify.log.error("Discord Token Error:", data);
       return reply.code(500).send({ error: "Failed to exchange token" });
     }
 
-    return { access_token: data.access_token };
+    // Fetch user profile from Discord
+    const userResponse = await fetch("https://discord.com/api/users/@me", {
+      headers: {
+        Authorization: `Bearer ${data.access_token}`,
+      },
+    });
+
+    if (!userResponse.ok) {
+      fastify.log.error("Failed to fetch Discord user profile");
+      return reply.code(500).send({ error: "Failed to fetch user profile" });
+    }
+
+    const user = await userResponse.json();
+
+    // Upsert user into database
+    try {
+      await pool.query(
+        `INSERT INTO discord_users (id, username, avatar) 
+         VALUES ($1, $2, $3) 
+         ON CONFLICT (id) DO UPDATE SET username = $2, avatar = $3`,
+        [user.id, user.username, user.avatar]
+      );
+    } catch (dbError) {
+      console.error("Failed to upsert Discord user:", dbError);
+      // Don't fail the request if DB upsert fails
+    }
+
+    return { access_token: data.access_token, user };
   } catch (error) {
     fastify.log.error(error);
     return reply.code(500).send({ error: "Internal server error" });
@@ -345,14 +420,16 @@ fastify.post("/api/analytics", async (request, reply) => {
       method: "POST",
       body: JSON.stringify({
         client_id: client_id || "anonymous",
-        events: [{
-          name: event_name,
-          params: {
-            ...params,
-            engagement_time_msec: 100, // Default engagement
-            session_id: params.session_id || Date.now().toString(), // Simple session tracking
+        events: [
+          {
+            name: event_name,
+            params: {
+              ...params,
+              engagement_time_msec: 100, // Default engagement
+              session_id: params.session_id || Date.now().toString(), // Simple session tracking
+            },
           },
-        }],
+        ],
       }),
     });
 
@@ -368,7 +445,132 @@ fastify.post("/api/analytics", async (request, reply) => {
 
 // Removed PATCH /api/guess/name as it is no longer needed
 
-// Removed stats endpoint as state is now client-side
+// User Stats and History
+fastify.get("/api/user/:userId/stats", async (request, reply) => {
+  const { userId } = request.params;
+
+  if (!userId) {
+    return reply.code(400).send({ error: "Missing user ID" });
+  }
+
+  try {
+    // Get user info - check DB first, but don't fail if not found
+    const userResult = await pool.query(
+      "SELECT id, username, avatar FROM discord_users WHERE id = $1",
+      [userId]
+    );
+
+    // If user hasn't made any guesses yet, return empty stats
+    // The user info will come from the request context (frontend has it from Discord auth)
+    const user = userResult.rows[0] || {
+      id: userId,
+      username: null,
+      avatar: null,
+    };
+
+    // Get aggregate stats from daily_results
+    const statsResult = await pool.query(
+      `SELECT 
+        COUNT(*) as games_played,
+        COUNT(*) FILTER (WHERE won = true) as games_won,
+        ROUND(AVG(guesses_count)::numeric, 1) as avg_guesses,
+        MIN(guesses_count) FILTER (WHERE won = true) as best_game,
+        ROUND(AVG(score)::numeric, 0) as avg_distance
+      FROM daily_results 
+      WHERE user_id = $1`,
+      [userId]
+    );
+
+    // Get recent game history (last 10 games)
+    const historyResult = await pool.query(
+      `SELECT date, score as distance, guesses_count, won
+       FROM daily_results 
+       WHERE user_id = $1 
+       ORDER BY date DESC 
+       LIMIT 10`,
+      [userId]
+    );
+
+    // Get current streak
+    const streakResult = await pool.query(
+      `WITH dates AS (
+        SELECT date, won,
+          date - (ROW_NUMBER() OVER (ORDER BY date DESC))::int AS grp
+        FROM daily_results
+        WHERE user_id = $1 AND won = true
+        ORDER BY date DESC
+      )
+      SELECT COUNT(*) as streak
+      FROM dates
+      WHERE grp = (SELECT grp FROM dates LIMIT 1)`,
+      [userId]
+    );
+
+    // Get total guesses made
+    const guessCountResult = await pool.query(
+      "SELECT COUNT(*) as total_guesses FROM user_guesses WHERE user_id = $1",
+      [userId]
+    );
+
+    const stats = statsResult.rows[0];
+    const streak = streakResult.rows[0]?.streak || 0;
+    const totalGuesses = guessCountResult.rows[0]?.total_guesses || 0;
+
+    return {
+      user: {
+        id: user.id,
+        username: user.username,
+        avatar: user.avatar,
+      },
+      stats: {
+        gamesPlayed: parseInt(stats.games_played) || 0,
+        gamesWon: parseInt(stats.games_won) || 0,
+        winRate:
+          stats.games_played > 0
+            ? Math.round((stats.games_won / stats.games_played) * 100)
+            : 0,
+        avgGuesses: parseFloat(stats.avg_guesses) || 0,
+        bestGame: parseInt(stats.best_game) || null,
+        avgDistance: parseInt(stats.avg_distance) || 0,
+        currentStreak: parseInt(streak) || 0,
+        totalGuesses: parseInt(totalGuesses) || 0,
+      },
+      recentGames: historyResult.rows.map((row) => ({
+        date: row.date,
+        distance: row.distance,
+        guessCount: row.guesses_count,
+        won: row.won,
+      })),
+    };
+  } catch (error) {
+    fastify.log.error(error);
+    return reply.code(500).send({ error: "Failed to fetch user stats" });
+  }
+});
+
+// Get guesses for a specific day
+fastify.get("/api/user/:userId/guesses/:date", async (request, reply) => {
+  const { userId, date } = request.params;
+
+  if (!userId || !date) {
+    return reply.code(400).send({ error: "Missing user ID or date" });
+  }
+
+  try {
+    const result = await pool.query(
+      `SELECT guess_number, lat, lng, location_name, distance, score, direction, timestamp
+       FROM user_guesses 
+       WHERE user_id = $1 AND date = $2
+       ORDER BY guess_number ASC`,
+      [userId, date]
+    );
+
+    return { guesses: result.rows };
+  } catch (error) {
+    fastify.log.error(error);
+    return reply.code(500).send({ error: "Failed to fetch guesses" });
+  }
+});
 
 // Haversine formula to calculate distance between two coordinates
 function calculateDistance(lat1, lon1, lat2, lon2) {
@@ -404,9 +606,11 @@ function calculateBearing(lat1, lon1, lat2, lon2) {
   const destLon = toRad(lon2);
 
   let dLon = destLon - startLon;
-  
+
   // Project latitude difference (Mercator)
-  const dPhi = Math.log(Math.tan(destLat / 2 + Math.PI / 4) / Math.tan(startLat / 2 + Math.PI / 4));
+  const dPhi = Math.log(
+    Math.tan(destLat / 2 + Math.PI / 4) / Math.tan(startLat / 2 + Math.PI / 4)
+  );
 
   // Handle dateline crossing
   if (Math.abs(dLon) > Math.PI) {
