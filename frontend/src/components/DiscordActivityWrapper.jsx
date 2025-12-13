@@ -56,12 +56,16 @@ const DiscordActivityWrapper = ({ children }) => {
   };
 
   useEffect(() => {
-    // Check if running in Discord
-    const inDiscord = document.referrer.includes("discord.com");
-    setIsDiscord(inDiscord);
+    // Check if running in Discord - must have frame_id query param for SDK to work
+    const urlParams = new URLSearchParams(window.location.search);
+    const hasFrameId = urlParams.has("frame_id");
+    const inDiscord = hasFrameId || document.referrer.includes("discord.com");
 
-    if (inDiscord) {
-      // Discord Activity Flow
+    // Only set isDiscord true if we have frame_id (required for SDK)
+    setIsDiscord(hasFrameId);
+
+    if (hasFrameId) {
+      // Discord Activity Flow - only initialize SDK if frame_id exists
       const sdk = new DiscordSDK(DISCORD_CLIENT_ID);
       setDiscordSdk(sdk);
 
