@@ -386,34 +386,41 @@ function App() {
                 </button>
 
                 {showDatePicker && (
-                  <div className="absolute left-0 md:left-auto md:right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-100 z-[1000] overflow-hidden">
-                    <div className="p-3 bg-gray-50 border-b border-gray-100">
-                      <h3 className="font-semibold text-gray-700">
-                        Select Date
-                      </h3>
+                  <>
+                    {/* Backdrop for mobile */}
+                    <div
+                      className="fixed inset-0 bg-black/20 z-[999] sm:hidden"
+                      onClick={() => setShowDatePicker(false)}
+                    />
+                    <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 sm:absolute sm:left-0 sm:top-auto sm:translate-x-0 sm:translate-y-0 sm:mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-100 z-[1000] overflow-hidden">
+                      <div className="p-3 bg-gray-50 border-b border-gray-100">
+                        <h3 className="font-semibold text-gray-700">
+                          Select Date
+                        </h3>
+                      </div>
+                      <div className="max-h-64 overflow-y-auto">
+                        {availableDates.map((date) => (
+                          <button
+                            key={date}
+                            onClick={() => {
+                              setCurrentDate(date);
+                              setShowDatePicker(false);
+                            }}
+                            className={`w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors flex items-center justify-between ${
+                              currentDate === date
+                                ? "bg-primary-50 text-primary-700 font-medium"
+                                : "text-gray-600"
+                            }`}
+                          >
+                            <span>{date}</span>
+                            {currentDate === date && (
+                              <div className="w-2 h-2 rounded-full bg-primary-500" />
+                            )}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                    <div className="max-h-64 overflow-y-auto">
-                      {availableDates.map((date) => (
-                        <button
-                          key={date}
-                          onClick={() => {
-                            setCurrentDate(date);
-                            setShowDatePicker(false);
-                          }}
-                          className={`w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors flex items-center justify-between ${
-                            currentDate === date
-                              ? "bg-primary-50 text-primary-700 font-medium"
-                              : "text-gray-600"
-                          }`}
-                        >
-                          <span>{date}</span>
-                          {currentDate === date && (
-                            <div className="w-2 h-2 rounded-full bg-primary-500" />
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                  </>
                 )}
               </div>
 
