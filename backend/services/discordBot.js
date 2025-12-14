@@ -263,9 +263,9 @@ async function postSummaryToChannel(channelId, guildId) {
         ? `${locationResult.rows[0].name}, ${locationResult.rows[0].country}`
         : "Unknown Location";
 
-    // Get results for this guild only
+    // Get results for this guild only (include user_id for mentions)
     const result = await pool.query(
-      `SELECT u.username, r.score, r.guesses_count, r.won
+      `SELECT u.id as user_id, u.username, r.score, r.guesses_count, r.won
        FROM daily_results r
        JOIN discord_users u ON r.user_id = u.id
        WHERE r.date = $1 AND r.guild_id = $2
@@ -279,6 +279,10 @@ async function postSummaryToChannel(channelId, guildId) {
     if (result.rows.length === 0) {
       summaryMsg += `No one from this server played yesterday! 😢`;
     } else {
+      // @mention all players who participated
+      const mentions = result.rows.map((r) => `<@${r.user_id}>`).join(" ");
+      summaryMsg += `${mentions}\n\n`;
+
       summaryMsg += `👥 ${result.rows.length} player${
         result.rows.length > 1 ? "s" : ""
       } participated\n\n`;
@@ -303,7 +307,7 @@ async function postSummaryToChannel(channelId, guildId) {
             ? "🥉"
             : `#${rank}`;
         const status = row.won ? "✅" : "❌";
-        summaryMsg += `${medal} **${row.username}** ${status} - ${row.guesses_count} guesses (${row.score}km)\n`;
+        summaryMsg += `${medal} <@${row.user_id}> ${status} - ${row.guesses_count} guesses (${row.score}km)\n`;
       });
     }
 
@@ -369,9 +373,9 @@ async function postDailySummaryToAllChannels() {
           continue;
         }
 
-        // Get results for this guild only
+        // Get results for this guild only (include user_id for mentions)
         const result = await pool.query(
-          `SELECT u.username, r.score, r.guesses_count, r.won
+          `SELECT u.id as user_id, u.username, r.score, r.guesses_count, r.won
            FROM daily_results r
            JOIN discord_users u ON r.user_id = u.id
            WHERE r.date = $1 AND r.guild_id = $2
@@ -385,6 +389,10 @@ async function postDailySummaryToAllChannels() {
         if (result.rows.length === 0) {
           summaryMsg += `No one from this server played yesterday! 😢`;
         } else {
+          // @mention all players who participated
+          const mentions = result.rows.map((r) => `<@${r.user_id}>`).join(" ");
+          summaryMsg += `${mentions}\n\n`;
+
           summaryMsg += `👥 ${result.rows.length} player${
             result.rows.length > 1 ? "s" : ""
           } participated\n\n`;
@@ -409,7 +417,7 @@ async function postDailySummaryToAllChannels() {
                 ? "🥉"
                 : `#${rank}`;
             const status = row.won ? "✅" : "❌";
-            summaryMsg += `${medal} **${row.username}** ${status} - ${row.guesses_count} guesses (${row.score}km)\n`;
+            summaryMsg += `${medal} <@${row.user_id}> ${status} - ${row.guesses_count} guesses (${row.score}km)\n`;
           });
         }
 
