@@ -1,12 +1,19 @@
-import { Client, GatewayIntentBits, Events } from "discord.js";
+import {
+  Client,
+  GatewayIntentBits,
+  Events,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+} from "discord.js";
 import cron from "node-cron";
 import pool from "../db/connection.js";
 
 let client = null;
 
-// Time to post daily summary (default: 11:00 PM Eastern)
-const SUMMARY_HOUR = process.env.DISCORD_SUMMARY_HOUR || "23";
-const SUMMARY_MINUTE = process.env.DISCORD_SUMMARY_MINUTE || "0";
+// Time to post daily summary (default: 9:30 AM Eastern)
+const SUMMARY_HOUR = process.env.DISCORD_SUMMARY_HOUR || "9";
+const SUMMARY_MINUTE = process.env.DISCORD_SUMMARY_MINUTE || "30";
 
 export const initDiscordBot = async () => {
   const token = process.env.DISCORD_BOT_TOKEN;
@@ -109,24 +116,13 @@ export const initDiscordBot = async () => {
 
         await interaction.editReply(
           `✅ **Locodle joined!**\n\n` +
-            `This channel will now receive daily summaries at ${SUMMARY_HOUR}:${SUMMARY_MINUTE.padStart(
+            `This channel will receive daily summaries at ${SUMMARY_HOUR}:${SUMMARY_MINUTE.padStart(
               2,
               "0"
-            )} Eastern.\n` +
+            )} AM Eastern (showing yesterday's results).\n` +
             `Only players from **${guildName}** will appear on your leaderboard.\n\n` +
-            `Use \`/leaderboard\` to see today's scores!\n\n` +
-            `⚠️ **TEST MODE:** Posting leaderboard every 30 seconds...`
+            `Use \`/leaderboard\` to see today's scores!`
         );
-
-        // TEMP TEST: Post leaderboard every 30 seconds
-        setInterval(async () => {
-          try {
-            await postSummaryToChannel(channelId, guildId);
-            console.log(`🧪 Test summary posted to ${channelId}`);
-          } catch (err) {
-            console.error("Test interval error:", err);
-          }
-        }, 30000);
       } catch (error) {
         console.error("Join error:", error);
         if (interaction.deferred || interaction.replied) {
@@ -251,12 +247,15 @@ async function postSummaryToChannel(channelId, guildId) {
       return;
     }
 
-    const today = new Date().toISOString().split("T")[0];
+    // Get yesterday's date (so we don't spoil today's challenge)
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split("T")[0];
 
-    // Get today's location name
+    // Get yesterday's location name
     const locationResult = await pool.query(
       "SELECT name, country FROM locations WHERE DATE(created_at) = $1 AND is_active = true LIMIT 1",
-      [today]
+      [yesterdayStr]
     );
 
     const locationName =
@@ -271,14 +270,14 @@ async function postSummaryToChannel(channelId, guildId) {
        JOIN discord_users u ON r.user_id = u.id
        WHERE r.date = $1 AND r.guild_id = $2
        ORDER BY r.won DESC, r.guesses_count ASC, r.score ASC`,
-      [today, guildId]
+      [yesterdayStr, guildId]
     );
 
-    let summaryMsg = `📊 **Daily Summary for ${today}**\n`;
-    summaryMsg += `📍 Today's location: **${locationName}**\n\n`;
+    let summaryMsg = `📊 **Yesterday's Results (${yesterdayStr})**\n`;
+    summaryMsg += `📍 Location: **${locationName}**\n\n`;
 
     if (result.rows.length === 0) {
-      summaryMsg += `No one from this server played today! 😢`;
+      summaryMsg += `No one from this server played yesterday! 😢`;
     } else {
       summaryMsg += `👥 ${result.rows.length} player${
         result.rows.length > 1 ? "s" : ""
@@ -308,9 +307,18 @@ async function postSummaryToChannel(channelId, guildId) {
       });
     }
 
-    summaryMsg += `\n🎮 Play at **locodle.com**!`;
+    summaryMsg += `\n🎮 Ready for today's challenge?`;
 
-    await channel.send(summaryMsg);
+    // Create Play button that launches the Discord Activity
+    const playButton = new ButtonBuilder()
+      .setLabel("Play Today's Challenge")
+      .setStyle(ButtonStyle.Link)
+      .setURL(`https://discord.com/activities/1442219897131368508`)
+      .setEmoji("🌍");
+
+    const row = new ActionRowBuilder().addComponents(playButton);
+
+    await channel.send({ content: summaryMsg, components: [row] });
   } catch (error) {
     console.error(`Failed to post summary to channel ${channelId}:`, error);
   }
@@ -334,12 +342,15 @@ async function postDailySummaryToAllChannels() {
       return;
     }
 
-    const today = new Date().toISOString().split("T")[0];
+    // Get yesterday's date (so we don't spoil today's challenge)
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split("T")[0];
 
-    // Get today's location name
+    // Get yesterday's location name
     const locationResult = await pool.query(
       "SELECT name, country FROM locations WHERE DATE(created_at) = $1 AND is_active = true LIMIT 1",
-      [today]
+      [yesterdayStr]
     );
 
     const locationName =
@@ -365,14 +376,14 @@ async function postDailySummaryToAllChannels() {
            JOIN discord_users u ON r.user_id = u.id
            WHERE r.date = $1 AND r.guild_id = $2
            ORDER BY r.won DESC, r.guesses_count ASC, r.score ASC`,
-          [today, channelRow.guild_id]
+          [yesterdayStr, channelRow.guild_id]
         );
 
-        let summaryMsg = `📊 **Daily Summary for ${today}**\n`;
-        summaryMsg += `📍 Today's location: **${locationName}**\n\n`;
+        let summaryMsg = `📊 **Yesterday's Results (${yesterdayStr})**\n`;
+        summaryMsg += `📍 Location: **${locationName}**\n\n`;
 
         if (result.rows.length === 0) {
-          summaryMsg += `No one from this server played today! 😢`;
+          summaryMsg += `No one from this server played yesterday! 😢`;
         } else {
           summaryMsg += `👥 ${result.rows.length} player${
             result.rows.length > 1 ? "s" : ""
@@ -402,9 +413,18 @@ async function postDailySummaryToAllChannels() {
           });
         }
 
-        summaryMsg += `\n🎮 Play tomorrow's challenge at **locodle.com**!`;
+        summaryMsg += `\n🎮 Ready for today's challenge?`;
 
-        await channel.send(summaryMsg);
+        // Create Play button that launches the Discord Activity
+        const playButton = new ButtonBuilder()
+          .setLabel("Play Today's Challenge")
+          .setStyle(ButtonStyle.Link)
+          .setURL(`https://discord.com/activities/1442219897131368508`)
+          .setEmoji("🌍");
+
+        const row = new ActionRowBuilder().addComponents(playButton);
+
+        await channel.send({ content: summaryMsg, components: [row] });
         console.log(
           `✅ Daily summary posted to ${channelRow.guild_name} (${channelRow.channel_id})`
         );
