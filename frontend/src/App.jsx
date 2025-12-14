@@ -41,7 +41,8 @@ function App() {
   const [showResultModal, setShowResultModal] = useState(false);
   const [historyExpanded, setHistoryExpanded] = useState(true);
   const [showStatsModal, setShowStatsModal] = useState(false);
-  const { isDiscord, sdk, trackEvent, user, logout } = useDiscord();
+  const { isDiscord, sdk, trackEvent, user, logout, setActivityStatus } =
+    useDiscord();
 
   // Helper for fetching data that works in both browser and Discord
   const customFetch = async (url, options = {}) => {
@@ -260,6 +261,19 @@ function App() {
             won: result.won,
             total_guesses: guesses.length + 1,
           });
+
+          // Update Discord Activity status to show completion
+          const guessCount = guesses.length + 1;
+          if (result.won) {
+            setActivityStatus(
+              `Found it in ${guessCount} guess${
+                guessCount > 1 ? "es" : ""
+              }! 🎉`,
+              "Locodle"
+            );
+          } else {
+            setActivityStatus(`Game Over - ${guessCount} guesses`, "Locodle");
+          }
         } else {
           // Show result modal if game is not completed and history is collapsed
           if (!historyExpanded) {

@@ -17,6 +17,7 @@ const DiscordContext = createContext({
   sdk: null,
   trackEvent: () => {},
   logout: () => {},
+  setActivityStatus: () => {},
 });
 
 export const useDiscord = () => useContext(DiscordContext);
@@ -52,6 +53,20 @@ const DiscordActivityWrapper = ({ children }) => {
       if (window.gtag) {
         window.gtag("event", eventName, params);
       }
+    }
+  };
+
+  // Update Discord Activity status (Rich Presence)
+  const setActivityStatus = async (state, details) => {
+    if (!isDiscord || !discordSdk) return;
+
+    try {
+      await discordSdk.commands.setActivity({
+        state: state, // e.g., "Completed in 3 guesses!"
+        details: details, // e.g., "Playing Locodle"
+      });
+    } catch (e) {
+      console.error("Failed to set activity status:", e);
     }
   };
 
@@ -241,6 +256,7 @@ const DiscordActivityWrapper = ({ children }) => {
           sdk: null,
           trackEvent,
           logout: handleLogout,
+          setActivityStatus,
         }}
       >
         {children}
@@ -259,6 +275,7 @@ const DiscordActivityWrapper = ({ children }) => {
           sdk: null,
           trackEvent,
           logout: handleLogout,
+          setActivityStatus,
         }}
       >
         {children}
@@ -276,6 +293,7 @@ const DiscordActivityWrapper = ({ children }) => {
           sdk: null,
           trackEvent,
           logout: handleLogout,
+          setActivityStatus,
         }}
       >
         <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white">
@@ -315,6 +333,7 @@ const DiscordActivityWrapper = ({ children }) => {
         sdk: discordSdk,
         trackEvent,
         logout: handleLogout,
+        setActivityStatus,
       }}
     >
       {children}
