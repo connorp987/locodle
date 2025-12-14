@@ -225,17 +225,26 @@ fastify.post("/api/guess", async (request, reply) => {
 
     // Save guess to DB if user is logged in
     if (request.body.discord_user_id) {
-      const { discord_user_id, username, avatar } = request.body;
+      const { discord_user_id, username, avatar, guild_id } = request.body;
       const gameDate = date || new Date().toISOString().split("T")[0];
 
       try {
-        // Upsert user
-        await pool.query(
-          `INSERT INTO discord_users (id, username, avatar) 
-           VALUES ($1, $2, $3) 
-           ON CONFLICT (id) DO UPDATE SET username = $2, avatar = $3`,
-          [discord_user_id, username, avatar]
-        );
+        // Upsert user (with guild_id if provided)
+        if (guild_id) {
+          await pool.query(
+            `INSERT INTO discord_users (id, username, avatar, guild_id) 
+             VALUES ($1, $2, $3, $4) 
+             ON CONFLICT (id) DO UPDATE SET username = $2, avatar = $3, guild_id = $4`,
+            [discord_user_id, username, avatar, guild_id]
+          );
+        } else {
+          await pool.query(
+            `INSERT INTO discord_users (id, username, avatar) 
+             VALUES ($1, $2, $3) 
+             ON CONFLICT (id) DO UPDATE SET username = $2, avatar = $3`,
+            [discord_user_id, username, avatar]
+          );
+        }
 
         // Save individual guess
         await pool.query(
@@ -254,11 +263,11 @@ fastify.post("/api/guess", async (request, reply) => {
           ]
         );
 
-        // If game completed, save to daily_results
+        // If game completed, save to daily_results (with guild_id)
         if (completed) {
           await pool.query(
-            `INSERT INTO daily_results (user_id, date, score, guesses_count, won)
-             VALUES ($1, $2, $3, $4, $5)
+            `INSERT INTO daily_results (user_id, date, score, guesses_count, won, guild_id)
+             VALUES ($1, $2, $3, $4, $5, $6)
              ON CONFLICT (user_id, date) DO NOTHING`,
             [
               discord_user_id,
@@ -266,6 +275,7 @@ fastify.post("/api/guess", async (request, reply) => {
               Math.round(distance),
               request.body.guessCount || 1,
               won,
+              guild_id || null,
             ]
           );
         }

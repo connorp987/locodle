@@ -225,6 +225,7 @@ function App() {
           discord_user_id: user?.id,
           username: user?.username,
           avatar: user?.avatar,
+          guild_id: user?.guild_id,
         }),
       });
 

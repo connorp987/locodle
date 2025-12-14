@@ -98,7 +98,12 @@ const DiscordActivityWrapper = ({ children }) => {
           });
 
           setAuth(authResult);
-          setCurrentUser(user || authResult.user);
+          // Include guild_id from SDK for server-specific leaderboards
+          const userWithGuild = {
+            ...(user || authResult.user),
+            guild_id: sdk.guildId,
+          };
+          setCurrentUser(userWithGuild);
         } catch (e) {
           console.error("Discord SDK Error", e);
           setError(e);

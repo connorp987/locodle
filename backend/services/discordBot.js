@@ -1,7 +1,12 @@
 import { Client, GatewayIntentBits, Events } from "discord.js";
+import cron from "node-cron";
 import pool from "../db/connection.js";
 
 let client = null;
+
+// Time to post daily summary (default: 11:00 PM Eastern)
+const SUMMARY_HOUR = process.env.DISCORD_SUMMARY_HOUR || "23";
+const SUMMARY_MINUTE = process.env.DISCORD_SUMMARY_MINUTE || "0";
 
 export const initDiscordBot = async () => {
   const token = process.env.DISCORD_BOT_TOKEN;
@@ -21,58 +26,175 @@ export const initDiscordBot = async () => {
   client.once(Events.ClientReady, async (c) => {
     console.log(`🤖 Discord Bot ready! Logged in as ${c.user.tag}`);
 
-    // Register Slash Command
-    // We use .create() instead of .set() to avoid overwriting the "Entry Point" command
-    // which is required for Discord Activities.
+    // Register Slash Commands
     try {
       const commands = await c.application.commands.fetch();
-      const hasLeaderboard = commands.some(cmd => cmd.name === "leaderboard");
-      
-      if (!hasLeaderboard) {
+      const commandNames = commands.map((cmd) => cmd.name);
+
+      // Register /leaderboard
+      if (!commandNames.includes("leaderboard")) {
         await c.application.commands.create({
           name: "leaderboard",
-          description: "Show today's Locodle leaderboard",
+          description: "Show today's Locodle leaderboard for this server",
         });
         console.log("✅ Slash Command '/leaderboard' registered");
-      } else {
-        console.log("✅ Slash Command '/leaderboard' already exists");
       }
+
+      // Register /join
+      if (!commandNames.includes("join")) {
+        await c.application.commands.create({
+          name: "join",
+          description: "Register this channel for daily Locodle summaries",
+        });
+        console.log("✅ Slash Command '/join' registered");
+      }
+
+      // Register /leave
+      if (!commandNames.includes("leave")) {
+        await c.application.commands.create({
+          name: "leave",
+          description: "Unregister this channel from daily Locodle summaries",
+        });
+        console.log("✅ Slash Command '/leave' registered");
+      }
+
+      console.log("✅ All slash commands ready");
     } catch (error) {
       console.error("❌ Failed to register commands:", error);
     }
+
+    // Schedule daily summary post to all registered channels
+    const cronExpression = `${SUMMARY_MINUTE} ${SUMMARY_HOUR} * * *`;
+
+    cron.schedule(
+      cronExpression,
+      async () => {
+        console.log("📊 Running scheduled daily summaries...");
+        await postDailySummaryToAllChannels();
+      },
+      {
+        timezone: "America/New_York",
+      }
+    );
+
+    console.log(
+      `📅 Daily summaries scheduled for ${SUMMARY_HOUR}:${SUMMARY_MINUTE.padStart(
+        2,
+        "0"
+      )} Eastern`
+    );
   });
 
   client.on(Events.InteractionCreate, async (interaction) => {
     if (!interaction.isChatInputCommand()) return;
 
+    const guildId = interaction.guildId;
+    const channelId = interaction.channelId;
+
+    // /join command - register this channel for daily summaries
+    if (interaction.commandName === "join") {
+      try {
+        await interaction.deferReply();
+
+        const guildName = interaction.guild?.name || "Unknown Server";
+        const channelName = interaction.channel?.name || "Unknown Channel";
+
+        // Insert or update channel registration
+        await pool.query(
+          `INSERT INTO discord_channels (channel_id, guild_id, guild_name, channel_name, is_active)
+           VALUES ($1, $2, $3, $4, true)
+           ON CONFLICT (channel_id) DO UPDATE SET is_active = true, guild_name = $3, channel_name = $4`,
+          [channelId, guildId, guildName, channelName]
+        );
+
+        await interaction.editReply(
+          `✅ **Locodle joined!**\n\n` +
+            `This channel will now receive daily summaries at ${SUMMARY_HOUR}:${SUMMARY_MINUTE.padStart(
+              2,
+              "0"
+            )} Eastern.\n` +
+            `Only players from **${guildName}** will appear on your leaderboard.\n\n` +
+            `Use \`/leaderboard\` to see today's scores!\n\n` +
+            `⚠️ **TEST MODE:** Posting leaderboard every 30 seconds...`
+        );
+
+        // TEMP TEST: Post leaderboard every 30 seconds
+        setInterval(async () => {
+          try {
+            await postSummaryToChannel(channelId, guildId);
+            console.log(`🧪 Test summary posted to ${channelId}`);
+          } catch (err) {
+            console.error("Test interval error:", err);
+          }
+        }, 30000);
+      } catch (error) {
+        console.error("Join error:", error);
+        if (interaction.deferred || interaction.replied) {
+          await interaction.editReply("❌ Failed to register channel.");
+        }
+      }
+      return;
+    }
+
+    // /leave command - unregister this channel
+    if (interaction.commandName === "leave") {
+      try {
+        await interaction.deferReply();
+
+        await pool.query(
+          `UPDATE discord_channels SET is_active = false WHERE channel_id = $1`,
+          [channelId]
+        );
+
+        await interaction.editReply(
+          `👋 **Locodle left!**\n\nThis channel will no longer receive daily summaries.`
+        );
+      } catch (error) {
+        console.error("Leave error:", error);
+        if (interaction.deferred || interaction.replied) {
+          await interaction.editReply("❌ Failed to unregister channel.");
+        }
+      }
+      return;
+    }
+
+    // /leaderboard command - show today's leaderboard for this server
     if (interaction.commandName === "leaderboard") {
       try {
-        await interaction.deferReply(); // Defer reply to allow time for DB query
+        await interaction.deferReply();
 
         const today = new Date().toISOString().split("T")[0];
-        
-        // Query top 10 results for today
-        // Ordered by: Won (true first), Guesses (low to high), Score/Distance (low to high)
+
+        // Query top 10 results for today, filtered by guild_id
         const result = await pool.query(
           `SELECT u.username, r.score, r.guesses_count, r.won
            FROM daily_results r
            JOIN discord_users u ON r.user_id = u.id
-           WHERE r.date = $1
+           WHERE r.date = $1 AND r.guild_id = $2
            ORDER BY r.won DESC, r.guesses_count ASC, r.score ASC
            LIMIT 10`,
-          [today]
+          [today, guildId]
         );
 
         if (result.rows.length === 0) {
-          await interaction.editReply("🏆 **Today's Leaderboard**\nNo results yet! Be the first to play.");
+          await interaction.editReply(
+            `🏆 **Today's Leaderboard**\nNo results yet from this server! Be the first to play.`
+          );
           return;
         }
 
         let leaderboardMsg = `🏆 **Leaderboard for ${today}**\n\n`;
-        
+
         result.rows.forEach((row, index) => {
           const rank = index + 1;
-          const medal = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : `#${rank}`;
+          const medal =
+            rank === 1
+              ? "🥇"
+              : rank === 2
+              ? "🥈"
+              : rank === 3
+              ? "🥉"
+              : `#${rank}`;
           const status = row.won ? "✅" : "❌";
           leaderboardMsg += `${medal} **${row.username}** ${status} - ${row.guesses_count} guesses (${row.score}km)\n`;
         });
@@ -80,12 +202,12 @@ export const initDiscordBot = async () => {
         await interaction.editReply(leaderboardMsg);
       } catch (error) {
         console.error("Leaderboard error:", error);
-        // Only try to edit reply if we successfully deferred or replied
         if (interaction.deferred || interaction.replied) {
           await interaction.editReply("❌ Failed to fetch leaderboard.");
         } else {
-          // If we failed before deferring (e.g. Unknown Interaction), we can't do anything
-          console.log("Could not reply to interaction (likely timed out or unknown).");
+          console.log(
+            "Could not reply to interaction (likely timed out or unknown)."
+          );
         }
       }
     }
@@ -107,10 +229,196 @@ export const postDailyResult = async (channelId, result) => {
       const emoji = result.won ? "🎉" : "💀";
       await channel.send(
         `${emoji} **${result.username}** finished today's Locodle!\n` +
-        `Guesses: ${result.guesses_count}/6 | Distance: ${result.score}km`
+          `Guesses: ${result.guesses_count}/6 | Distance: ${result.score}km`
       );
     }
   } catch (error) {
     console.error("Failed to post result:", error);
   }
 };
+
+// Post summary to a single channel (used for testing and individual posts)
+async function postSummaryToChannel(channelId, guildId) {
+  if (!client || !client.isReady()) {
+    console.log("Cannot post summary: bot not ready");
+    return;
+  }
+
+  try {
+    const channel = await client.channels.fetch(channelId);
+    if (!channel || !channel.isTextBased()) {
+      console.log(`Channel ${channelId} not found or not text-based`);
+      return;
+    }
+
+    const today = new Date().toISOString().split("T")[0];
+
+    // Get today's location name
+    const locationResult = await pool.query(
+      "SELECT name, country FROM locations WHERE DATE(created_at) = $1 AND is_active = true LIMIT 1",
+      [today]
+    );
+
+    const locationName =
+      locationResult.rows.length > 0
+        ? `${locationResult.rows[0].name}, ${locationResult.rows[0].country}`
+        : "Unknown Location";
+
+    // Get results for this guild only
+    const result = await pool.query(
+      `SELECT u.username, r.score, r.guesses_count, r.won
+       FROM daily_results r
+       JOIN discord_users u ON r.user_id = u.id
+       WHERE r.date = $1 AND r.guild_id = $2
+       ORDER BY r.won DESC, r.guesses_count ASC, r.score ASC`,
+      [today, guildId]
+    );
+
+    let summaryMsg = `📊 **Daily Summary for ${today}**\n`;
+    summaryMsg += `📍 Today's location: **${locationName}**\n\n`;
+
+    if (result.rows.length === 0) {
+      summaryMsg += `No one from this server played today! 😢`;
+    } else {
+      summaryMsg += `👥 ${result.rows.length} player${
+        result.rows.length > 1 ? "s" : ""
+      } participated\n\n`;
+
+      const winners = result.rows.filter((r) => r.won);
+      const avgGuesses =
+        result.rows.reduce((sum, r) => sum + r.guesses_count, 0) /
+        result.rows.length;
+
+      summaryMsg += `🏆 **Winners:** ${winners.length}/${result.rows.length}\n`;
+      summaryMsg += `📈 **Avg Guesses:** ${avgGuesses.toFixed(1)}\n\n`;
+
+      summaryMsg += `**Leaderboard:**\n`;
+      result.rows.forEach((row, index) => {
+        const rank = index + 1;
+        const medal =
+          rank === 1
+            ? "🥇"
+            : rank === 2
+            ? "🥈"
+            : rank === 3
+            ? "🥉"
+            : `#${rank}`;
+        const status = row.won ? "✅" : "❌";
+        summaryMsg += `${medal} **${row.username}** ${status} - ${row.guesses_count} guesses (${row.score}km)\n`;
+      });
+    }
+
+    summaryMsg += `\n🎮 Play at **locodle.com**!`;
+
+    await channel.send(summaryMsg);
+  } catch (error) {
+    console.error(`Failed to post summary to channel ${channelId}:`, error);
+  }
+}
+
+// Post daily summary to all registered channels
+async function postDailySummaryToAllChannels() {
+  if (!client || !client.isReady()) {
+    console.log("Cannot post daily summaries: bot not ready");
+    return;
+  }
+
+  try {
+    // Get all active registered channels
+    const channelsResult = await pool.query(
+      "SELECT channel_id, guild_id, guild_name FROM discord_channels WHERE is_active = true"
+    );
+
+    if (channelsResult.rows.length === 0) {
+      console.log("No registered channels for daily summaries");
+      return;
+    }
+
+    const today = new Date().toISOString().split("T")[0];
+
+    // Get today's location name
+    const locationResult = await pool.query(
+      "SELECT name, country FROM locations WHERE DATE(created_at) = $1 AND is_active = true LIMIT 1",
+      [today]
+    );
+
+    const locationName =
+      locationResult.rows.length > 0
+        ? `${locationResult.rows[0].name}, ${locationResult.rows[0].country}`
+        : "Unknown Location";
+
+    // Post to each registered channel
+    for (const channelRow of channelsResult.rows) {
+      try {
+        const channel = await client.channels.fetch(channelRow.channel_id);
+        if (!channel || !channel.isTextBased()) {
+          console.log(
+            `Channel ${channelRow.channel_id} not found or not text-based`
+          );
+          continue;
+        }
+
+        // Get results for this guild only
+        const result = await pool.query(
+          `SELECT u.username, r.score, r.guesses_count, r.won
+           FROM daily_results r
+           JOIN discord_users u ON r.user_id = u.id
+           WHERE r.date = $1 AND r.guild_id = $2
+           ORDER BY r.won DESC, r.guesses_count ASC, r.score ASC`,
+          [today, channelRow.guild_id]
+        );
+
+        let summaryMsg = `📊 **Daily Summary for ${today}**\n`;
+        summaryMsg += `📍 Today's location: **${locationName}**\n\n`;
+
+        if (result.rows.length === 0) {
+          summaryMsg += `No one from this server played today! 😢`;
+        } else {
+          summaryMsg += `👥 ${result.rows.length} player${
+            result.rows.length > 1 ? "s" : ""
+          } participated\n\n`;
+
+          const winners = result.rows.filter((r) => r.won);
+          const avgGuesses =
+            result.rows.reduce((sum, r) => sum + r.guesses_count, 0) /
+            result.rows.length;
+
+          summaryMsg += `🏆 **Winners:** ${winners.length}/${result.rows.length}\n`;
+          summaryMsg += `📈 **Avg Guesses:** ${avgGuesses.toFixed(1)}\n\n`;
+
+          summaryMsg += `**Leaderboard:**\n`;
+          result.rows.forEach((row, index) => {
+            const rank = index + 1;
+            const medal =
+              rank === 1
+                ? "🥇"
+                : rank === 2
+                ? "🥈"
+                : rank === 3
+                ? "🥉"
+                : `#${rank}`;
+            const status = row.won ? "✅" : "❌";
+            summaryMsg += `${medal} **${row.username}** ${status} - ${row.guesses_count} guesses (${row.score}km)\n`;
+          });
+        }
+
+        summaryMsg += `\n🎮 Play tomorrow's challenge at **locodle.com**!`;
+
+        await channel.send(summaryMsg);
+        console.log(
+          `✅ Daily summary posted to ${channelRow.guild_name} (${channelRow.channel_id})`
+        );
+      } catch (channelError) {
+        console.error(
+          `Failed to post to channel ${channelRow.channel_id}:`,
+          channelError.message
+        );
+      }
+    }
+  } catch (error) {
+    console.error("Failed to post daily summaries:", error);
+  }
+}
+
+// Export for manual testing
+export { postDailySummaryToAllChannels };
