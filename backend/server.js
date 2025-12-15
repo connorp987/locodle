@@ -225,11 +225,23 @@ fastify.post("/api/guess", async (request, reply) => {
 
     // Save guess to DB if user is logged in
     if (request.body.discord_user_id) {
-      const { discord_user_id, username, avatar, guild_id } = request.body;
+      const { discord_user_id, username, avatar } = request.body;
+      let { guild_id } = request.body;
       const gameDate = date || new Date().toISOString().split("T")[0];
 
       try {
-        // Upsert user (with guild_id if provided)
+        // If no guild_id provided (web user), look up their existing guild_id from previous Discord plays
+        if (!guild_id) {
+          const existingUser = await pool.query(
+            "SELECT guild_id FROM discord_users WHERE id = $1 AND guild_id IS NOT NULL",
+            [discord_user_id]
+          );
+          if (existingUser.rows.length > 0) {
+            guild_id = existingUser.rows[0].guild_id;
+          }
+        }
+
+        // Upsert user (with guild_id if provided or found)
         if (guild_id) {
           await pool.query(
             `INSERT INTO discord_users (id, username, avatar, guild_id) 
