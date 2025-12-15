@@ -247,10 +247,13 @@ async function postSummaryToChannel(channelId, guildId) {
       return;
     }
 
-    // Get yesterday's date (so we don't spoil today's challenge)
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().split("T")[0];
+    // Get yesterday's date in Eastern Time (so we don't spoil today's challenge)
+    const now = new Date();
+    const easternNow = new Date(
+      now.toLocaleString("en-US", { timeZone: "America/New_York" })
+    );
+    easternNow.setDate(easternNow.getDate() - 1);
+    const yesterdayStr = easternNow.toISOString().split("T")[0];
 
     // Get yesterday's location name
     const locationResult = await pool.query(
@@ -346,10 +349,13 @@ async function postDailySummaryToAllChannels() {
       return;
     }
 
-    // Get yesterday's date (so we don't spoil today's challenge)
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().split("T")[0];
+    // Get yesterday's date in Eastern Time (so we don't spoil today's challenge)
+    const now = new Date();
+    const easternNow = new Date(
+      now.toLocaleString("en-US", { timeZone: "America/New_York" })
+    );
+    easternNow.setDate(easternNow.getDate() - 1);
+    const yesterdayStr = easternNow.toISOString().split("T")[0];
 
     // Get yesterday's location name
     const locationResult = await pool.query(
