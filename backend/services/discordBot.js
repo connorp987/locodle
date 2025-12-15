@@ -8,6 +8,7 @@ import {
 } from "discord.js";
 import cron from "node-cron";
 import pool from "../db/connection.js";
+import { getLocationForDate } from "./locationGenerator.js";
 
 let client = null;
 
@@ -266,16 +267,11 @@ async function postSummaryToChannel(channelId, guildId) {
     easternNow.setDate(easternNow.getDate() - 1);
     const yesterdayStr = easternNow.toISOString().split("T")[0];
 
-    // Get yesterday's location name
-    const locationResult = await pool.query(
-      "SELECT name, country FROM locations WHERE DATE(created_at) = $1 AND is_active = true LIMIT 1",
-      [yesterdayStr]
-    );
-
-    const locationName =
-      locationResult.rows.length > 0
-        ? `${locationResult.rows[0].name}, ${locationResult.rows[0].country}`
-        : "Unknown Location";
+    // Get yesterday's location using the same function as the main app
+    const location = await getLocationForDate(yesterdayStr);
+    const locationName = location
+      ? `${location.name}, ${location.country}`
+      : "Unknown Location";
 
     // Get results for this guild only (include user_id for mentions)
     const result = await pool.query(
@@ -368,16 +364,11 @@ async function postDailySummaryToAllChannels() {
     easternNow.setDate(easternNow.getDate() - 1);
     const yesterdayStr = easternNow.toISOString().split("T")[0];
 
-    // Get yesterday's location name
-    const locationResult = await pool.query(
-      "SELECT name, country FROM locations WHERE DATE(created_at) = $1 AND is_active = true LIMIT 1",
-      [yesterdayStr]
-    );
-
-    const locationName =
-      locationResult.rows.length > 0
-        ? `${locationResult.rows[0].name}, ${locationResult.rows[0].country}`
-        : "Unknown Location";
+    // Get yesterday's location using the same function as the main app
+    const location = await getLocationForDate(yesterdayStr);
+    const locationName = location
+      ? `${location.name}, ${location.country}`
+      : "Unknown Location";
 
     // Post to each registered channel
     for (const channelRow of channelsResult.rows) {
