@@ -122,19 +122,8 @@ export const initDiscordBot = async () => {
               "0"
             )} AM Eastern (showing yesterday's results).\n` +
             `Only players from **${guildName}** will appear on your leaderboard.\n\n` +
-            `Use \`/leaderboard\` to see today's scores!\n\n` +
-            `⚠️ **TEST MODE:** Posting summary every 30 seconds...`
+            `Use \`/leaderboard\` to see today's scores!`
         );
-
-        // TEMP TEST: Post summary every 30 seconds
-        setInterval(async () => {
-          try {
-            await postSummaryToChannel(channelId, guildId);
-            console.log(`🧪 Test summary posted to ${channelId}`);
-          } catch (err) {
-            console.error("Test interval error:", err);
-          }
-        }, 30000);
       } catch (error) {
         console.error("Join error:", error);
         if (interaction.deferred || interaction.replied) {

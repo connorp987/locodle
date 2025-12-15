@@ -37,9 +37,18 @@ await fastify.register(rateLimit, {
 // Cache for locations by date to avoid repeated DB queries
 const locationCache = new Map();
 
+// Helper to get current date in Eastern Time
+function getEasternDateString() {
+  const now = new Date();
+  const eastern = new Date(
+    now.toLocaleString("en-US", { timeZone: "America/New_York" })
+  );
+  return eastern.toISOString().split("T")[0];
+}
+
 // Get daily location (same for all players on a given day)
 async function getDailyLocation(date = null) {
-  const targetDate = date || new Date().toISOString().split("T")[0];
+  const targetDate = date || getEasternDateString();
 
   // Check in-memory cache first
   if (locationCache.has(targetDate)) {
