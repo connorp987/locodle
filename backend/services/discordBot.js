@@ -495,6 +495,15 @@ export async function postOrUpdateCompletionMessage(
       } guess${row.guesses_count !== 1 ? "es" : ""}\n`;
     });
 
+    // Create Play button
+    const playButton = new ButtonBuilder()
+      .setLabel("Play Today's Challenge")
+      .setStyle(ButtonStyle.Link)
+      .setURL(`https://discord.com/activities/1442219897131368508`)
+      .setEmoji("🌍");
+
+    const buttonRow = new ActionRowBuilder().addComponents(playButton);
+
     // Check if we already have a message for this channel/date
     const existingMessage = await pool.query(
       `SELECT message_id FROM discord_completion_messages WHERE channel_id = $1 AND date = $2`,
@@ -507,7 +516,10 @@ export async function postOrUpdateCompletionMessage(
         const message = await channel.messages.fetch(
           existingMessage.rows[0].message_id
         );
-        await message.edit(messageContent);
+        await message.edit({
+          content: messageContent,
+          components: [buttonRow],
+        });
 
         // Update timestamp
         await pool.query(
@@ -520,7 +532,10 @@ export async function postOrUpdateCompletionMessage(
           editError.message
         );
         // Message might have been deleted, send a new one
-        const newMessage = await channel.send(messageContent);
+        const newMessage = await channel.send({
+          content: messageContent,
+          components: [buttonRow],
+        });
         await pool.query(
           `UPDATE discord_completion_messages SET message_id = $1, updated_at = CURRENT_TIMESTAMP WHERE channel_id = $2 AND date = $3`,
           [newMessage.id, channelId, date]
@@ -528,7 +543,10 @@ export async function postOrUpdateCompletionMessage(
       }
     } else {
       // Send new message
-      const newMessage = await channel.send(messageContent);
+      const newMessage = await channel.send({
+        content: messageContent,
+        components: [buttonRow],
+      });
 
       // Store message ID
       await pool.query(

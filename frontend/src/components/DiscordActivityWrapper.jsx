@@ -1,5 +1,5 @@
 import { useEffect, useState, createContext, useContext } from "react";
-import { DiscordSDK } from "@discord/embedded-app-sdk";
+import { DiscordSDK, RPCCloseCodes } from "@discord/embedded-app-sdk";
 
 // Placeholder Client ID - User needs to replace this
 const DISCORD_CLIENT_ID = "1442219897131368508";
@@ -18,6 +18,7 @@ const DiscordContext = createContext({
   trackEvent: () => {},
   logout: () => {},
   setActivityStatus: () => {},
+  closeActivity: () => {},
 });
 
 export const useDiscord = () => useContext(DiscordContext);
@@ -74,6 +75,17 @@ const DiscordActivityWrapper = ({ children }) => {
       await discordSdk.commands.setActivity(activityConfig);
     } catch (e) {
       console.error("Failed to set activity status:", e);
+    }
+  };
+
+  // Close the activity with a custom message
+  const closeActivity = (message) => {
+    if (!isDiscord || !discordSdk) return;
+
+    try {
+      discordSdk.close(RPCCloseCodes.CLOSE_NORMAL, message);
+    } catch (e) {
+      console.error("Failed to close activity:", e);
     }
   };
 
@@ -264,6 +276,7 @@ const DiscordActivityWrapper = ({ children }) => {
           trackEvent,
           logout: handleLogout,
           setActivityStatus,
+          closeActivity,
         }}
       >
         {children}
@@ -283,6 +296,7 @@ const DiscordActivityWrapper = ({ children }) => {
           trackEvent,
           logout: handleLogout,
           setActivityStatus,
+          closeActivity,
         }}
       >
         {children}
@@ -301,6 +315,7 @@ const DiscordActivityWrapper = ({ children }) => {
           trackEvent,
           logout: handleLogout,
           setActivityStatus,
+          closeActivity,
         }}
       >
         <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white">
@@ -341,6 +356,7 @@ const DiscordActivityWrapper = ({ children }) => {
         trackEvent,
         logout: handleLogout,
         setActivityStatus,
+        closeActivity,
       }}
     >
       {children}

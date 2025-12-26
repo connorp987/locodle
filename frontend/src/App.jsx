@@ -41,8 +41,15 @@ function App() {
   const [showResultModal, setShowResultModal] = useState(false);
   const [historyExpanded, setHistoryExpanded] = useState(true);
   const [showStatsModal, setShowStatsModal] = useState(false);
-  const { isDiscord, sdk, trackEvent, user, logout, setActivityStatus } =
-    useDiscord();
+  const {
+    isDiscord,
+    sdk,
+    trackEvent,
+    user,
+    logout,
+    setActivityStatus,
+    closeActivity,
+  } = useDiscord();
 
   // Helper for fetching data that works in both browser and Discord
   const customFetch = async (url, options = {}) => {
@@ -262,22 +269,27 @@ function App() {
             total_guesses: guesses.length + 1,
           });
 
-          // Update Discord Activity status to show completion
+          // Update Discord Activity status and close with custom message
           const guessCount = guesses.length + 1;
           if (result.won) {
-            setActivityStatus(
-              `Found it in ${guessCount} guess${
-                guessCount > 1 ? "es" : ""
-              }! 🎉`,
-              "Locodle",
-              true // Persist status after activity ends
-            );
+            const closeMessage = `🎉 Found it in ${guessCount} guess${
+              guessCount > 1 ? "es" : ""
+            }!`;
+            setActivityStatus(closeMessage, "Locodle", true);
+            // Close activity with custom message after a short delay to let user see the win
+            if (isDiscord) {
+              setTimeout(() => {
+                closeActivity(closeMessage);
+              }, 3000); // 3 second delay to see the win screen
+            }
           } else {
-            setActivityStatus(
-              `Game Over - ${guessCount} guesses`,
-              "Locodle",
-              true
-            );
+            const closeMessage = `Game Over - ${guessCount} guesses`;
+            setActivityStatus(closeMessage, "Locodle", true);
+            if (isDiscord) {
+              setTimeout(() => {
+                closeActivity(closeMessage);
+              }, 3000);
+            }
           }
         } else {
           // Show result modal if game is not completed and history is collapsed
