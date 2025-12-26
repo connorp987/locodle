@@ -269,27 +269,22 @@ function App() {
             total_guesses: guesses.length + 1,
           });
 
-          // Update Discord Activity status and close with custom message
+          // Update Discord Activity status to show completion
           const guessCount = guesses.length + 1;
           if (result.won) {
-            const closeMessage = `🎉 Found it in ${guessCount} guess${
-              guessCount > 1 ? "es" : ""
-            }!`;
-            setActivityStatus(closeMessage, "Locodle", true);
-            // Close activity with custom message after a short delay to let user see the win
-            if (isDiscord) {
-              setTimeout(() => {
-                closeActivity(closeMessage);
-              }, 3000); // 3 second delay to see the win screen
-            }
+            setActivityStatus(
+              `Found it in ${guessCount} guess${
+                guessCount > 1 ? "es" : ""
+              }! 🎉`,
+              "Locodle",
+              true
+            );
           } else {
-            const closeMessage = `Game Over - ${guessCount} guesses`;
-            setActivityStatus(closeMessage, "Locodle", true);
-            if (isDiscord) {
-              setTimeout(() => {
-                closeActivity(closeMessage);
-              }, 3000);
-            }
+            setActivityStatus(
+              `Game Over - ${guessCount} guesses`,
+              "Locodle",
+              true
+            );
           }
         } else {
           // Show result modal if game is not completed and history is collapsed
