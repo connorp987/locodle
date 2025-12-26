@@ -96,12 +96,7 @@ export const initDiscordBot = async () => {
   client.on(Events.InteractionCreate, async (interaction) => {
     // Handle Button Interactions
     if (interaction.isButton()) {
-      if (interaction.customId === "play_locodle") {
-        await interaction.reply({
-          content: `🌍 **Click to Play:** https://discord.com/activities/1442219897131368508`,
-          ephemeral: true,
-        });
-      }
+      // play_locodle is now handled via Link Buttons, so no interaction handler needed for it
       return;
     }
 
@@ -128,8 +123,8 @@ export const initDiscordBot = async () => {
 
         const playButton = new ButtonBuilder()
           .setLabel("Play Today's Challenge")
-          .setStyle(ButtonStyle.Primary)
-          .setCustomId("play_locodle")
+          .setStyle(ButtonStyle.Link)
+          .setURL("https://discord.com/activities/1442219897131368508")
           .setEmoji("🌍");
 
         const row = new ActionRowBuilder().addComponents(playButton);
@@ -336,8 +331,8 @@ async function postSummaryToChannel(channelId, guildId) {
     // Create Play button that launches the Discord Activity
     const playButton = new ButtonBuilder()
       .setLabel("Play Today's Challenge")
-      .setStyle(ButtonStyle.Primary)
-      .setCustomId("play_locodle")
+      .setStyle(ButtonStyle.Link)
+      .setURL("https://discord.com/activities/1442219897131368508")
       .setEmoji("🌍");
 
     const row = new ActionRowBuilder().addComponents(playButton);
@@ -436,8 +431,8 @@ async function postDailySummaryToAllChannels() {
         // Create Play button that launches the Discord Activity
         const playButton = new ButtonBuilder()
           .setLabel("Play Today's Challenge")
-          .setStyle(ButtonStyle.Primary)
-          .setCustomId("play_locodle")
+          .setStyle(ButtonStyle.Link)
+          .setURL("https://discord.com/activities/1442219897131368508")
           .setEmoji("🌍");
 
         const row = new ActionRowBuilder().addComponents(playButton);
@@ -506,15 +501,6 @@ export async function postOrUpdateCompletionMessage(
       } guess${row.guesses_count !== 1 ? "es" : ""}\n`;
     });
 
-    // Create Play button that launches the Discord Activity
-    const playButton = new ButtonBuilder()
-      .setLabel("Play Today's Challenge")
-      .setStyle(ButtonStyle.Primary)
-      .setCustomId("play_locodle")
-      .setEmoji("🌍");
-
-    const buttonRow = new ActionRowBuilder().addComponents(playButton);
-
     // Check if we already have a message for this channel/date
     const existingMessage = await pool.query(
       `SELECT message_id FROM discord_completion_messages WHERE channel_id = $1 AND date = $2`,
@@ -529,7 +515,7 @@ export async function postOrUpdateCompletionMessage(
         );
         await message.edit({
           content: messageContent,
-          components: [buttonRow],
+          components: [],
         });
 
         // Update timestamp
@@ -545,7 +531,7 @@ export async function postOrUpdateCompletionMessage(
         // Message might have been deleted, send a new one
         const newMessage = await channel.send({
           content: messageContent,
-          components: [buttonRow],
+          components: [],
         });
         await pool.query(
           `UPDATE discord_completion_messages SET message_id = $1, updated_at = CURRENT_TIMESTAMP WHERE channel_id = $2 AND date = $3`,
@@ -556,7 +542,7 @@ export async function postOrUpdateCompletionMessage(
       // Send new message
       const newMessage = await channel.send({
         content: messageContent,
-        components: [buttonRow],
+        components: [],
       });
 
       // Store message ID
