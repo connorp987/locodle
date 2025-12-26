@@ -164,7 +164,7 @@ export const initDiscordBot = async () => {
 
         // Query top 10 results for today, filtered by guild_id
         const result = await pool.query(
-          `SELECT u.username, r.score, r.guesses_count, r.won
+          `SELECT u.id as user_id, u.username, r.score, r.guesses_count, r.won
            FROM daily_results r
            JOIN discord_users u ON r.user_id = u.id
            WHERE r.date = $1 AND r.guild_id = $2
@@ -193,7 +193,7 @@ export const initDiscordBot = async () => {
               ? "🥉"
               : `#${rank}`;
           const status = row.won ? "✅" : "❌";
-          leaderboardMsg += `${medal} **${row.username}** ${status} - ${row.guesses_count} guesses (${row.score}km)\n`;
+          leaderboardMsg += `${medal} <@${row.user_id}> ${status} - ${row.guesses_count} guesses (${row.score}km)\n`;
         });
 
         await interaction.editReply(leaderboardMsg);
@@ -386,14 +386,6 @@ async function postDailySummaryToAllChannels() {
         if (result.rows.length === 0) {
           summaryMsg += `No one from this server played yesterday! 😢`;
         } else {
-          // @mention all players who participated
-          const mentions = result.rows.map((r) => `<@${r.user_id}>`).join(" ");
-          summaryMsg += `${mentions}\n\n`;
-
-          summaryMsg += `👥 ${result.rows.length} player${
-            result.rows.length > 1 ? "s" : ""
-          } participated\n\n`;
-
           const winners = result.rows.filter((r) => r.won);
           const avgGuesses =
             result.rows.reduce((sum, r) => sum + r.guesses_count, 0) /
