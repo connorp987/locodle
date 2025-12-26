@@ -269,10 +269,15 @@ function App() {
               `Found it in ${guessCount} guess${
                 guessCount > 1 ? "es" : ""
               }! 🎉`,
-              "Locodle"
+              "Locodle",
+              true // Persist status after activity ends
             );
           } else {
-            setActivityStatus(`Game Over - ${guessCount} guesses`, "Locodle");
+            setActivityStatus(
+              `Game Over - ${guessCount} guesses`,
+              "Locodle",
+              true
+            );
           }
         } else {
           // Show result modal if game is not completed and history is collapsed

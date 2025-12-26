@@ -57,14 +57,21 @@ const DiscordActivityWrapper = ({ children }) => {
   };
 
   // Update Discord Activity status (Rich Presence)
-  const setActivityStatus = async (state, details) => {
+  const setActivityStatus = async (state, details, persist = false) => {
     if (!isDiscord || !discordSdk) return;
 
     try {
-      await discordSdk.commands.setActivity({
+      const activityConfig = {
         state: state, // e.g., "Completed in 3 guesses!"
         details: details, // e.g., "Playing Locodle"
-      });
+      };
+
+      // If persist is true, try to make the status persist after instance ends
+      if (persist) {
+        activityConfig.instance = false;
+      }
+
+      await discordSdk.commands.setActivity(activityConfig);
     } catch (e) {
       console.error("Failed to set activity status:", e);
     }
