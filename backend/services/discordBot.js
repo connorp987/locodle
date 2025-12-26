@@ -94,6 +94,17 @@ export const initDiscordBot = async () => {
   });
 
   client.on(Events.InteractionCreate, async (interaction) => {
+    // Handle Button Interactions
+    if (interaction.isButton()) {
+      if (interaction.customId === "play_locodle") {
+        await interaction.reply({
+          content: `🌍 **Click to Play:** https://discord.com/activities/1442219897131368508`,
+          ephemeral: true,
+        });
+      }
+      return;
+    }
+
     if (!interaction.isChatInputCommand()) return;
 
     const guildId = interaction.guildId;
@@ -117,8 +128,8 @@ export const initDiscordBot = async () => {
 
         const playButton = new ButtonBuilder()
           .setLabel("Play Today's Challenge")
-          .setStyle(ButtonStyle.Link)
-          .setURL(`https://discord.com/activities/1442219897131368508`)
+          .setStyle(ButtonStyle.Primary)
+          .setCustomId("play_locodle")
           .setEmoji("🌍");
 
         const row = new ActionRowBuilder().addComponents(playButton);
@@ -325,8 +336,8 @@ async function postSummaryToChannel(channelId, guildId) {
     // Create Play button that launches the Discord Activity
     const playButton = new ButtonBuilder()
       .setLabel("Play Today's Challenge")
-      .setStyle(ButtonStyle.Link)
-      .setURL(`https://discord.com/activities/1442219897131368508`)
+      .setStyle(ButtonStyle.Primary)
+      .setCustomId("play_locodle")
       .setEmoji("🌍");
 
     const row = new ActionRowBuilder().addComponents(playButton);
@@ -425,8 +436,8 @@ async function postDailySummaryToAllChannels() {
         // Create Play button that launches the Discord Activity
         const playButton = new ButtonBuilder()
           .setLabel("Play Today's Challenge")
-          .setStyle(ButtonStyle.Link)
-          .setURL(`https://discord.com/activities/1442219897131368508`)
+          .setStyle(ButtonStyle.Primary)
+          .setCustomId("play_locodle")
           .setEmoji("🌍");
 
         const row = new ActionRowBuilder().addComponents(playButton);
@@ -495,11 +506,11 @@ export async function postOrUpdateCompletionMessage(
       } guess${row.guesses_count !== 1 ? "es" : ""}\n`;
     });
 
-    // Create Play button
+    // Create Play button that launches the Discord Activity
     const playButton = new ButtonBuilder()
       .setLabel("Play Today's Challenge")
-      .setStyle(ButtonStyle.Link)
-      .setURL(`https://discord.com/activities/1442219897131368508`)
+      .setStyle(ButtonStyle.Primary)
+      .setCustomId("play_locodle")
       .setEmoji("🌍");
 
     const buttonRow = new ActionRowBuilder().addComponents(playButton);
