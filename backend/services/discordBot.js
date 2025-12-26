@@ -115,15 +115,25 @@ export const initDiscordBot = async () => {
           [channelId, guildId, guildName, channelName]
         );
 
-        await interaction.editReply(
-          `✅ **Locodle joined!**\n\n` +
+        const playButton = new ButtonBuilder()
+          .setLabel("Play Today's Challenge")
+          .setStyle(ButtonStyle.Link)
+          .setURL(`https://discord.com/activities/1442219897131368508`)
+          .setEmoji("🌍");
+
+        const row = new ActionRowBuilder().addComponents(playButton);
+
+        await interaction.editReply({
+          content:
+            `✅ **Locodle joined!**\n\n` +
             `This channel will receive daily summaries at ${SUMMARY_HOUR}:${SUMMARY_MINUTE.padStart(
               2,
               "0"
             )} AM Eastern (showing yesterday's results).\n` +
             `Only players from **${guildName}** will appear on your leaderboard.\n\n` +
-            `Use \`/leaderboard\` to see today's scores!`
-        );
+            `Use \`/leaderboard\` to see today's scores!`,
+          components: [row],
+        });
       } catch (error) {
         console.error("Join error:", error);
         if (interaction.deferred || interaction.replied) {
