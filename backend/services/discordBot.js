@@ -447,5 +447,122 @@ async function postDailySummaryToAllChannels() {
   }
 }
 
+// Post or update a completion message for a channel when a user finishes
+export async function postOrUpdateCompletionMessage(
+  channelId,
+  guildId,
+  userId,
+  username,
+  guessCount,
+  won,
+  date
+) {
+  if (!client || !client.isReady()) {
+    console.log("Cannot post completion message: bot not ready");
+    return;
+  }
+
+  try {
+    const channel = await client.channels.fetch(channelId);
+    if (!channel || !channel.isTextBased()) {
+      console.log(`Channel ${channelId} not found or not text-based`);
+      return;
+    }
+
+    // Get all completions for this guild/date
+    const completionsResult = await pool.query(
+      `SELECT u.id as user_id, u.username, r.guesses_count, r.won
+       FROM daily_results r
+       JOIN discord_users u ON r.user_id = u.id
+       WHERE r.date = $1 AND r.guild_id = $2
+       ORDER BY r.guesses_count ASC`,
+      [date, guildId]
+    );
+
+    if (completionsResult.rows.length === 0) {
+      return; // No completions yet
+    }
+
+    // Build the message content
+    let messageContent = `🌍 **Today's Locodle Results** (${date})\n\n`;
+
+    completionsResult.rows.forEach((row, index) => {
+      const emoji = row.won ? "✅" : "❌";
+      const medal =
+        index === 0 ? "🥇 " : index === 1 ? "🥈 " : index === 2 ? "🥉 " : "";
+      messageContent += `${medal}<@${row.user_id}> ${emoji} ${
+        row.guesses_count
+      } guess${row.guesses_count !== 1 ? "es" : ""}\n`;
+    });
+
+    // Check if we already have a message for this channel/date
+    const existingMessage = await pool.query(
+      `SELECT message_id FROM discord_completion_messages WHERE channel_id = $1 AND date = $2`,
+      [channelId, date]
+    );
+
+    if (existingMessage.rows.length > 0) {
+      // Edit existing message
+      try {
+        const message = await channel.messages.fetch(
+          existingMessage.rows[0].message_id
+        );
+        await message.edit(messageContent);
+
+        // Update timestamp
+        await pool.query(
+          `UPDATE discord_completion_messages SET updated_at = CURRENT_TIMESTAMP WHERE channel_id = $1 AND date = $2`,
+          [channelId, date]
+        );
+      } catch (editError) {
+        console.error(
+          "Failed to edit message, sending new one:",
+          editError.message
+        );
+        // Message might have been deleted, send a new one
+        const newMessage = await channel.send(messageContent);
+        await pool.query(
+          `UPDATE discord_completion_messages SET message_id = $1, updated_at = CURRENT_TIMESTAMP WHERE channel_id = $2 AND date = $3`,
+          [newMessage.id, channelId, date]
+        );
+      }
+    } else {
+      // Send new message
+      const newMessage = await channel.send(messageContent);
+
+      // Store message ID
+      await pool.query(
+        `INSERT INTO discord_completion_messages (channel_id, guild_id, date, message_id)
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT (channel_id, date) DO UPDATE SET message_id = $4, updated_at = CURRENT_TIMESTAMP`,
+        [channelId, guildId, date, newMessage.id]
+      );
+    }
+
+    console.log(
+      `✅ Completion message posted/updated for channel ${channelId}`
+    );
+  } catch (error) {
+    console.error(
+      `Failed to post completion message to channel ${channelId}:`,
+      error
+    );
+  }
+}
+
+// Get all registered channels for a guild
+export async function getRegisteredChannelsForGuild(guildId) {
+  try {
+    const result = await pool.query(
+      `SELECT channel_id FROM discord_channels WHERE guild_id = $1 AND is_active = true`,
+      [guildId]
+    );
+    return result.rows.map((row) => row.channel_id);
+  } catch (error) {
+    console.error("Failed to get registered channels:", error);
+    return [];
+  }
+}
+
 // Export for manual testing
 export { postDailySummaryToAllChannels };

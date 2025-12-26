@@ -6,7 +6,11 @@ import {
   getAvailableDates,
 } from "./services/locationGenerator.js";
 import pool from "./db/connection.js";
-import { initDiscordBot } from "./services/discordBot.js";
+import {
+  initDiscordBot,
+  postOrUpdateCompletionMessage,
+  getRegisteredChannelsForGuild,
+} from "./services/discordBot.js";
 
 // Initialize Discord Bot
 initDiscordBot();
@@ -299,6 +303,26 @@ fastify.post("/api/guess", async (request, reply) => {
               guild_id || null,
             ]
           );
+
+          // Post/update completion message to all registered channels for this guild
+          if (guild_id) {
+            const registeredChannels = await getRegisteredChannelsForGuild(
+              guild_id
+            );
+            for (const channelId of registeredChannels) {
+              postOrUpdateCompletionMessage(
+                channelId,
+                guild_id,
+                discord_user_id,
+                username,
+                request.body.guessCount || 1,
+                won,
+                gameDate
+              ).catch((err) =>
+                console.error("Failed to post completion message:", err)
+              );
+            }
+          }
         }
       } catch (dbError) {
         console.error("Failed to save guess:", dbError);
