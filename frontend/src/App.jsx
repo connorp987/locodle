@@ -41,15 +41,8 @@ function App() {
   const [showResultModal, setShowResultModal] = useState(false);
   const [historyExpanded, setHistoryExpanded] = useState(true);
   const [showStatsModal, setShowStatsModal] = useState(false);
-  const {
-    isDiscord,
-    sdk,
-    trackEvent,
-    user,
-    logout,
-    setActivityStatus,
-    closeActivity,
-  } = useDiscord();
+  const { isDiscord, sdk, trackEvent, user, logout, setActivityStatus } =
+    useDiscord();
 
   // Helper for fetching data that works in both browser and Discord
   const customFetch = async (url, options = {}) => {
