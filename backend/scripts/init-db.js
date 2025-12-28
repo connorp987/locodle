@@ -33,8 +33,17 @@ async function initDb() {
             path.join(migrationsDir, file),
             "utf8"
           );
-          await pool.query(migrationSql);
-          console.log(`✅ Migration ${file} applied`);
+          try {
+            await pool.query(migrationSql);
+            console.log(`✅ Migration ${file} applied`);
+          } catch (migrationError) {
+            console.error(
+              `⚠️  Error in migration ${file}:`,
+              migrationError.message
+            );
+            // Continue with other migrations even if one fails
+            // (useful for idempotent migrations with IF NOT EXISTS)
+          }
         }
       }
     }

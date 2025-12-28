@@ -4018,9 +4018,22 @@ export async function getLocationForDate(date = null) {
     }
 
     // If requesting a past date that doesn't exist, return null or throw
+    console.log(`⚠️  No location found for past date: ${targetDate}`);
     return null;
   } catch (error) {
-    console.error("Error getting location for date:", error);
+    console.error(
+      `❌ Error getting location for date ${targetDate}:`,
+      error.message
+    );
+    // If game_date column doesn't exist, this will fail - log detailed error
+    if (
+      error.message.includes("column") &&
+      error.message.includes("game_date")
+    ) {
+      console.error(
+        "⚠️  CRITICAL: game_date column missing! Run migrations: npm run init-db"
+      );
+    }
     throw error;
   }
 }
