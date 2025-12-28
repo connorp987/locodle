@@ -44,10 +44,13 @@ const locationCache = new Map();
 // Helper to get current date in Eastern Time
 function getEasternDateString() {
   const now = new Date();
-  const eastern = new Date(
+  const easternTime = new Date(
     now.toLocaleString("en-US", { timeZone: "America/New_York" })
   );
-  return eastern.toISOString().split("T")[0];
+  const year = easternTime.getFullYear();
+  const month = String(easternTime.getMonth() + 1).padStart(2, "0");
+  const day = String(easternTime.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 // Get daily location (same for all players on a given day)
@@ -98,7 +101,7 @@ fastify.get("/api/daily-challenge", async (request, reply) => {
 
     // Return location without revealing the answer
     return {
-      date: date || new Date().toISOString().split("T")[0],
+      date: date || getEasternDateString(),
       hints: dailyLocation.hints,
       maxGuesses: 6,
     };
@@ -240,7 +243,7 @@ fastify.post("/api/guess", async (request, reply) => {
     if (request.body.discord_user_id) {
       const { discord_user_id, username, avatar } = request.body;
       let { guild_id } = request.body;
-      const gameDate = date || new Date().toISOString().split("T")[0];
+      const gameDate = date || getEasternDateString();
 
       try {
         // If no guild_id provided (web user), look up their existing guild_id from previous Discord plays

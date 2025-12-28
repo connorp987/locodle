@@ -3,10 +3,13 @@ import pool from "../db/connection.js";
 // Get today's date in Eastern Time
 function getEasternDateString() {
   const now = new Date();
-  const eastern = new Date(
+  const easternTime = new Date(
     now.toLocaleString("en-US", { timeZone: "America/New_York" })
   );
-  return eastern.toISOString().split("T")[0];
+  const year = easternTime.getFullYear();
+  const month = String(easternTime.getMonth() + 1).padStart(2, "0");
+  const day = String(easternTime.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 async function clearTodayLocation() {

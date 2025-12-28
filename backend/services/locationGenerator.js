@@ -3975,10 +3975,13 @@ function getContinent(country) {
 // Helper to get current date in Eastern Time
 function getEasternDateString() {
   const now = new Date();
-  const eastern = new Date(
+  const easternTime = new Date(
     now.toLocaleString("en-US", { timeZone: "America/New_York" })
   );
-  return eastern.toISOString().split("T")[0];
+  const year = easternTime.getFullYear();
+  const month = String(easternTime.getMonth() + 1).padStart(2, "0");
+  const day = String(easternTime.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 // Get location for a specific date (defaults to today in Eastern Time)
@@ -4013,7 +4016,11 @@ export async function getLocationForDate(date = null) {
 
     // If requesting today and no location exists, generate one
     const today = getEasternDateString();
+    console.log(
+      `🔍 Comparing targetDate: "${targetDate}" with today: "${today}"`
+    );
     if (targetDate === today) {
+      console.log(`✅ Generating new location for today: ${today}`);
       return await generateNewLocation();
     }
 
@@ -4041,14 +4048,12 @@ export async function getLocationForDate(date = null) {
 // Get all available dates that have games
 export async function getAvailableDates() {
   try {
+    // Convert created_at to Eastern Time before extracting the date
+    // This ensures we get the correct date based on when it was created in ET, not UTC
     const result = await pool.query(
-      "SELECT DISTINCT DATE(created_at) as date FROM locations WHERE is_active = true ORDER BY date DESC"
+      "SELECT DISTINCT DATE(created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/New_York') as date FROM locations WHERE is_active = true ORDER BY date DESC"
     );
-    return result.rows.map((row) => {
-      // Format date as YYYY-MM-DD to avoid timezone issues
-      const d = new Date(row.date);
-      return d.toISOString().split("T")[0];
-    });
+    return result.rows.map((row) => row.date);
   } catch (error) {
     console.error("Error getting available dates:", error);
     throw error;

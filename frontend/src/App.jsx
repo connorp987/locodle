@@ -33,9 +33,21 @@ function App() {
     const stored = localStorage.getItem("locodle-game-mode");
     return stored || "hard"; // Default to Hard mode
   });
-  const [currentDate, setCurrentDate] = useState(
-    new Date().toISOString().split("T")[0]
-  );
+  const [currentDate, setCurrentDate] = useState(() => {
+    // Get current time in Eastern Time
+    const now = new Date();
+    const utcOffset = now.getTimezoneOffset() * 60000; // offset in milliseconds
+    const utcTime = now.getTime() + utcOffset;
+    // Eastern Time is UTC-5 (or UTC-4 during DST)
+    // Use Intl API to get the correct offset
+    const easternTime = new Date(
+      now.toLocaleString("en-US", { timeZone: "America/New_York" })
+    );
+    const year = easternTime.getFullYear();
+    const month = String(easternTime.getMonth() + 1).padStart(2, "0");
+    const day = String(easternTime.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  });
   const [availableDates, setAvailableDates] = useState([]);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showResultModal, setShowResultModal] = useState(false);

@@ -176,7 +176,12 @@ export const initDiscordBot = async () => {
       try {
         await interaction.deferReply();
 
-        const today = new Date().toISOString().split("T")[0];
+        // Get today's date in Eastern Time
+        const now = new Date();
+        const eastern = new Date(
+          now.toLocaleString("en-US", { timeZone: "America/New_York" })
+        );
+        const today = eastern.toISOString().split("T")[0];
 
         // Query top 10 results for today, filtered by guild_id
         const result = await pool.query(
