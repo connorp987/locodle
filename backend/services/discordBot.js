@@ -99,6 +99,31 @@ export const initDiscordBot = async () => {
         "0"
       )} Eastern`
     );
+
+    // Pre-generate today's location at 12:15 AM Eastern
+    cron.schedule(
+      "15 0 * * *",
+      async () => {
+        const now = new Date();
+        const eastern = new Date(
+          now.toLocaleString("en-US", { timeZone: "America/New_York" })
+        );
+        const today = eastern.toISOString().split("T")[0];
+        console.log(`🌍 Pre-generating location for ${today}...`);
+        try {
+          await getLocationForDate(today);
+          console.log(`✅ Location for ${today} is ready.`);
+        } catch (error) {
+          console.error(
+            `❌ Failed to pre-generate location for ${today}:`,
+            error
+          );
+        }
+      },
+      {
+        timezone: "America/New_York",
+      }
+    );
   });
 
   client.on(Events.InteractionCreate, async (interaction) => {
