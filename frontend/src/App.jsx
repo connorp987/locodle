@@ -14,6 +14,7 @@ import GuessHistory from "./components/GuessHistory";
 import GameStats from "./components/GameStats";
 import HintsPanel from "./components/HintsPanel";
 import GuessResultModal from "./components/GuessResultModal";
+import GameOverModal from "./components/GameOverModal";
 import UserStatsModal from "./components/UserStatsModal";
 import { useDiscord } from "./components/DiscordActivityWrapper";
 
@@ -59,6 +60,7 @@ function App() {
   const [availableDates, setAvailableDates] = useState([]);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showResultModal, setShowResultModal] = useState(false);
+  const [showGameOverModal, setShowGameOverModal] = useState(false);
   const [historyExpanded, setHistoryExpanded] = useState(true);
   const [showStatsModal, setShowStatsModal] = useState(false);
   const {
@@ -265,9 +267,9 @@ function App() {
         setGuesses(newGuesses);
         setTempMarker(null); // Clear temp marker after successful guess
 
-        let newCompleted = gameCompleted;
-        let newWon = gameWon;
-        let newAnswer = answer;
+        let newCompleted = result.completed;
+        let newWon = result.won;
+        let newAnswer = result.answer;
 
         // Track Guess
         trackEvent("guess", {
@@ -277,20 +279,11 @@ function App() {
         });
 
         if (result.completed) {
-          newCompleted = true;
-          newWon = result.won;
-          newAnswer = result.answer;
           setGameCompleted(true);
           setGameWon(result.won);
           setAnswer(result.answer);
+          setShowGameOverModal(true);
 
-          // Track Game Completion
-          trackEvent("game_complete", {
-            won: result.won,
-            total_guesses: guesses.length + 1,
-          });
-
-          // Update Discord Activity status to show completion
           const guessCount = guesses.length + 1;
           if (result.won) {
             setActivityStatus(
@@ -632,56 +625,15 @@ function App() {
                   onClearMarker={() => setTempMarker(null)}
                 />
               )}
-
-              {/* Game Over Message */}
+              {/* Game Over - Re-open Modal Button */}
               {gameCompleted && (
-                <div
-                  className={`bg-white rounded-xl shadow-lg p-6 text-center ${
-                    gameWon
-                      ? "border-4 border-green-500"
-                      : "border-4 border-red-500"
-                  }`}
+                <button
+                  onClick={() => setShowGameOverModal(true)}
+                  className="w-full bg-white hover:bg-gray-50 text-gray-900 font-bold py-4 px-6 rounded-2xl flex items-center justify-center gap-3 transition-all shadow-lg border-2 border-primary-600 transform hover:scale-[1.02] active:scale-[0.98]"
                 >
-                  {gameWon ? (
-                    <>
-                      <Trophy className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
-                      <h2 className="text-3xl font-bold text-green-600 mb-2">
-                        Congratulations! 🎉
-                      </h2>
-                      <p className="text-xl text-gray-700">
-                        You found{" "}
-                        <span className="font-bold">{answer?.name}</span>,{" "}
-                        {answer?.country} in {guesses.length}{" "}
-                        {guesses.length === 1 ? "guess" : "guesses"}!
-                      </p>
-                    </>
-                  ) : (
-                    <>
-                      <Target className="w-16 h-16 text-red-500 mx-auto mb-4" />
-                      <h2 className="text-3xl font-bold text-red-600 mb-2">
-                        Game Over
-                      </h2>
-                      <p className="text-xl text-gray-700">
-                        The answer was{" "}
-                        <span className="font-bold">{answer?.name}</span>,{" "}
-                        {answer?.country}
-                      </p>
-                    </>
-                  )}
-                  <p className="text-gray-500 mt-4">
-                    Come back tomorrow for a new challenge!
-                  </p>
-
-                  {isDiscord && (
-                    <button
-                      onClick={handleShareAndExit}
-                      className="mt-6 w-full bg-primary-600 hover:bg-primary-700 text-white font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg transform hover:scale-[1.02] active:scale-[0.98]"
-                    >
-                      <Share2 className="w-5 h-5" />
-                      Share Results & Exit
-                    </button>
-                  )}
-                </div>
+                  <Trophy className="w-6 h-6 text-yellow-500" />
+                  View Results & Share
+                </button>
               )}
             </div>
 
@@ -734,6 +686,17 @@ function App() {
           onClose={() => setShowStatsModal(false)}
         />
       )}
+
+      {/* Game Over Modal */}
+      <GameOverModal
+        isOpen={showGameOverModal}
+        gameWon={gameWon}
+        answer={answer}
+        guesses={guesses}
+        isDiscord={isDiscord}
+        onShareAndExit={handleShareAndExit}
+        onClose={() => setShowGameOverModal(false)}
+      />
     </div>
   );
 }
