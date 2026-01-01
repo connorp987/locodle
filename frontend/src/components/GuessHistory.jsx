@@ -22,12 +22,18 @@ const GuessHistory = ({ guesses, useKm = true, gameMode = "hard" }) => {
   }
 
   const getTemperatureLabel = (distance) => {
-    if (distance < 50) return { text: "Perfect!", color: "text-green-600 bg-green-50" };
-    if (distance < 500) return { text: "Fire", color: "text-red-600 bg-red-50" };
-    if (distance < 1500) return { text: "Hot", color: "text-orange-600 bg-orange-50" };
-    if (distance < 3000) return { text: "Warm", color: "text-yellow-600 bg-yellow-50" };
-    if (distance < 6000) return { text: "Chilly", color: "text-blue-400 bg-blue-50" };
-    if (distance < 10000) return { text: "Cold", color: "text-blue-600 bg-blue-100" };
+    if (distance < 50)
+      return { text: "Perfect!", color: "text-green-600 bg-green-50" };
+    if (distance < 500)
+      return { text: "Fire", color: "text-red-600 bg-red-50" };
+    if (distance < 1500)
+      return { text: "Hot", color: "text-orange-600 bg-orange-50" };
+    if (distance < 3000)
+      return { text: "Warm", color: "text-yellow-600 bg-yellow-50" };
+    if (distance < 6000)
+      return { text: "Chilly", color: "text-blue-400 bg-blue-50" };
+    if (distance < 10000)
+      return { text: "Cold", color: "text-blue-600 bg-blue-100" };
     return { text: "Freezing", color: "text-indigo-700 bg-indigo-100" };
   };
 
@@ -48,11 +54,12 @@ const GuessHistory = ({ guesses, useKm = true, gameMode = "hard" }) => {
   const formatLocationName = (guess) => {
     // If we have structured address data from the backend, use it
     if (guess.address) {
-      const { city, town, village, hamlet, suburb, county, state, country } = guess.address;
-      
+      const { city, town, village, hamlet, suburb, state, country } =
+        guess.address;
+
       // Try to find the most relevant "city-like" name
       const mainName = city || town || village || hamlet || suburb;
-      
+
       if (mainName) {
         // Append state or country for context if available, but keep it short
         // e.g. "Paris, France" or "Springfield, IL"
@@ -86,9 +93,9 @@ const GuessHistory = ({ guesses, useKm = true, gameMode = "hard" }) => {
       </h2>
 
       <div className="space-y-3">
-        {[...guesses].reverse().map((guess, index, array) => {
+        {[...guesses].reverse().map((guess, index) => {
           const temperature = getTemperatureLabel(guess.distance);
-          
+
           return (
             <div
               key={index}
@@ -111,7 +118,9 @@ const GuessHistory = ({ guesses, useKm = true, gameMode = "hard" }) => {
                   </div>
                 </div>
                 <div className="flex flex-col items-end">
-                  <span className={`text-xs font-bold px-2 py-1 rounded ${temperature.color}`}>
+                  <span
+                    className={`text-xs font-bold px-2 py-1 rounded ${temperature.color}`}
+                  >
                     {temperature.text}
                   </span>
                 </div>
@@ -120,13 +129,20 @@ const GuessHistory = ({ guesses, useKm = true, gameMode = "hard" }) => {
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <TrendingDown className="w-4 h-4" />
                 <span>
-                  {convertDistance(guess.distance).toLocaleString()} {distanceUnit} away
+                  {convertDistance(guess.distance).toLocaleString()}{" "}
+                  {distanceUnit} away
                 </span>
-                {guesses.length >= 2 && guess.direction && guess.distance >= 50 && gameMode === "easy" && (
-                  <span className="ml-2 font-bold text-gray-700" title={`Direction: ${guess.direction}`}>
-                    {guess.direction} {getDirectionArrow(guess.direction)}
-                  </span>
-                )}
+                {guesses.length >= 2 &&
+                  guess.direction &&
+                  guess.distance >= 50 &&
+                  gameMode === "easy" && (
+                    <span
+                      className="ml-2 font-bold text-gray-700"
+                      title={`Direction: ${guess.direction}`}
+                    >
+                      {guess.direction} {getDirectionArrow(guess.direction)}
+                    </span>
+                  )}
               </div>
 
               <p className="text-xs text-gray-500 mt-2">

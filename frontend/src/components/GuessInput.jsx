@@ -5,8 +5,6 @@ const GuessInput = ({
   onGuess,
   onConfirm,
   disabled,
-  guessCount,
-  maxGuesses,
   tempMarker,
   onClearMarker,
 }) => {
@@ -86,7 +84,6 @@ const GuessInput = ({
     if (!tempMarker || !onConfirm) return;
     onConfirm(tempMarker);
   };
-
 
   return (
     <div className="bg-white rounded-xl shadow-lg p-6">

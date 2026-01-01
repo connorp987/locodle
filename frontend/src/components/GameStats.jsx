@@ -1,6 +1,6 @@
 import { Target, TrendingUp, Award } from "lucide-react";
 
-const GameStats = ({ guesses, maxGuesses, completed, won, useKm = true }) => {
+const GameStats = ({ guesses, completed, won, useKm = true }) => {
   const convertDistance = (km) => {
     if (useKm) return km;
     return Math.round(km * 0.621371); // Convert to miles
@@ -27,7 +27,9 @@ const GameStats = ({ guesses, maxGuesses, completed, won, useKm = true }) => {
           <div className="bg-white rounded-xl shadow-lg p-6 flex items-center justify-between">
             <div>
               <p className="text-sm text-gray-500 font-medium">Total Guesses</p>
-              <p className="text-2xl font-bold text-gray-900">{guesses.length}</p>
+              <p className="text-2xl font-bold text-gray-900">
+                {guesses.length}
+              </p>
             </div>
             <div className="w-12 h-12 bg-primary-50 rounded-full flex items-center justify-center">
               <Target className="w-6 h-6 text-primary-600" />

@@ -1,11 +1,6 @@
-import {
-  useEffect,
-  useState,
-  useCallback,
-  createContext,
-  useContext,
-} from "react";
+import { useEffect, useState, useCallback } from "react";
 import { DiscordSDK } from "@discord/embedded-app-sdk";
+import { DiscordContext } from "../contexts/DiscordContext";
 
 // Placeholder Client ID - User needs to replace this
 const DISCORD_CLIENT_ID = "1442219897131368508";
@@ -15,20 +10,6 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
 
 // Module-level flag to prevent double code exchange in React Strict Mode
 let processedCode = null;
-
-// Create Context
-const DiscordContext = createContext({
-  isDiscord: false,
-  user: null,
-  sdk: null,
-  trackEvent: () => {},
-  logout: () => {},
-  setActivityStatus: () => {},
-  postChannelMessage: () => {},
-  closeActivity: () => {},
-});
-
-export const useDiscord = () => useContext(DiscordContext);
 
 const DiscordActivityWrapper = ({ children }) => {
   const [auth, setAuth] = useState(null);

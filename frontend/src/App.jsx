@@ -7,7 +7,7 @@ import HintsPanel from "./components/HintsPanel";
 import GuessResultModal from "./components/GuessResultModal";
 import GameOverModal from "./components/GameOverModal";
 import UserStatsModal from "./components/UserStatsModal";
-import { useDiscord } from "./components/DiscordActivityWrapper";
+import { useDiscord } from "./contexts/DiscordContext";
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
 

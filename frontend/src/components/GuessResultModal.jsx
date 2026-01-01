@@ -1,13 +1,6 @@
-import React from "react";
 import { X, MapPin, Navigation } from "lucide-react";
 
-const GuessResultModal = ({
-  guess,
-  isHotter,
-  onClose,
-  useKm,
-  gameMode = "hard",
-}) => {
+const GuessResultModal = ({ guess, onClose, useKm, gameMode = "hard" }) => {
   if (!guess) return null;
 
   const distanceUnit = useKm ? "km" : "mi";

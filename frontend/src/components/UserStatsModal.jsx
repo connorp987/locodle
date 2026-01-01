@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   X,
   Trophy,
@@ -21,14 +21,7 @@ const UserStatsModal = ({ user, isDiscord, onClose }) => {
   const [gameGuesses, setGameGuesses] = useState(null);
   const fetchedRef = useRef(false);
 
-  useEffect(() => {
-    if (user?.id && !fetchedRef.current) {
-      fetchedRef.current = true;
-      fetchStats();
-    }
-  }, [user?.id]);
-
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
       setLoading(true);
       const url = `${API_BASE_URL}/api/user/${user.id}/stats`;
@@ -48,26 +41,36 @@ const UserStatsModal = ({ user, isDiscord, onClose }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user, isDiscord]);
 
-  const fetchGameGuesses = async (date) => {
-    try {
-      const url = `${API_BASE_URL}/api/user/${user.id}/guesses/${date}`;
-      const response = isDiscord
-        ? await fetch(`/api/user/${user.id}/guesses/${date}`)
-        : await fetch(url);
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch guesses");
-      }
-
-      const data = await response.json();
-      setGameGuesses(data.guesses);
-      setSelectedGame(date);
-    } catch (err) {
-      console.error("Failed to fetch guesses:", err);
+  useEffect(() => {
+    if (user?.id && !fetchedRef.current) {
+      fetchedRef.current = true;
+      fetchStats();
     }
-  };
+  }, [fetchStats, user?.id]);
+
+  const fetchGameGuesses = useCallback(
+    async (date) => {
+      try {
+        const url = `${API_BASE_URL}/api/user/${user.id}/guesses/${date}`;
+        const response = isDiscord
+          ? await fetch(`/api/user/${user.id}/guesses/${date}`)
+          : await fetch(url);
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch guesses");
+        }
+
+        const data = await response.json();
+        setGameGuesses(data.guesses);
+        setSelectedGame(date);
+      } catch (err) {
+        console.error("Failed to fetch guesses:", err);
+      }
+    },
+    [user, isDiscord]
+  );
 
   const formatDate = (dateStr) => {
     const date = new Date(dateStr);

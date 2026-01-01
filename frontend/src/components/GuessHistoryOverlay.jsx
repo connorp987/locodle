@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { TrendingDown, ChevronUp, ChevronDown, History } from "lucide-react";
 
 const GuessHistoryOverlay = ({
@@ -56,7 +56,7 @@ const GuessHistoryOverlay = ({
 
   const formatLocationName = (guess) => {
     if (guess.address) {
-      const { city, town, village, hamlet, suburb, county, state, country } =
+      const { city, town, village, hamlet, suburb, state, country } =
         guess.address;
       const mainName = city || town || village || hamlet || suburb;
       if (mainName) {

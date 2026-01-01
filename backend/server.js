@@ -6,12 +6,7 @@ import {
   getAvailableDates,
 } from "./services/locationGenerator.js";
 import pool from "./db/connection.js";
-import {
-  initDiscordBot,
-  postOrUpdateCompletionMessage,
-  getRegisteredChannelsForGuild,
-  postResultMessage,
-} from "./services/discordBot.js";
+import { initDiscordBot, postResultMessage } from "./services/discordBot.js";
 
 // Initialize Discord Bot
 initDiscordBot();
@@ -75,7 +70,7 @@ async function getDailyLocation(date = null) {
 }
 
 // Routes
-fastify.get("/api/health", async (request, reply) => {
+fastify.get("/api/health", async () => {
   return { status: "ok", timestamp: new Date().toISOString() };
 });
 
@@ -113,7 +108,7 @@ fastify.get("/api/daily-challenge", async (request, reply) => {
 });
 
 fastify.post("/api/guess", async (request, reply) => {
-  const { guess, date, isLastGuess } = request.body;
+  const { guess, date } = request.body;
 
   if (!guess) {
     return reply.code(400).send({ error: "Missing guess" });
