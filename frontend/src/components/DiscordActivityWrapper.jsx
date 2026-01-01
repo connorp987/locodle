@@ -127,39 +127,25 @@ const DiscordActivityWrapper = ({ children }) => {
     if (!isDiscord || !discordSdk) return;
 
     try {
-      console.log(
-        "Inspecting discordSdk.commands:",
-        Object.keys(discordSdk.commands || {})
-      );
+      console.log("Checking for official .close() method...");
+      // Use official .close() method as per Discord docs
+      if (typeof discordSdk.close === "function") {
+        console.log("Found discordSdk.close(), calling it now...");
+        discordSdk.close();
+        return;
+      }
 
-      // Try closeActivity first (official but sometimes missing)
+      console.log(
+        "discordSdk.close() not found. Checking commands fallback..."
+      );
+      // Fallback for older SDK versions or if .close() is missing
       if (typeof discordSdk.commands.closeActivity === "function") {
+        console.log("Found discordSdk.commands.closeActivity(), calling it...");
         await discordSdk.commands.closeActivity();
         return;
       }
 
-      // Try stopActivity (alternative found in some SDK versions)
-      if (typeof discordSdk.commands.stopActivity === "function") {
-        await discordSdk.commands.stopActivity();
-        return;
-      }
-
-      // Try generic command invocation if the function is not directly exposed but exists in the RPC layer
-      // Some versions of the SDK might have the command registered but not on the prototype
-      try {
-        await discordSdk.commands.authorize({
-          // This is a dummy call just to see if we can trigger an error that reveals more about the SDK state
-          // Actually, let's try calling closeActivity via the internal send method if available
-          // (Internal/Experimental - proceed with caution)
-        });
-      } catch (e) {}
-
-      // Fallback: If no SDK command works, try closing the window as a last resort
-      // (Though browsers usually block window.close() for iframes)
-      console.warn(
-        "No SDK close command found. Available commands are:",
-        Object.keys(discordSdk.commands || {})
-      );
+      console.warn("No official close method found in SDK.");
     } catch (e) {
       console.error("Failed to close activity:", e);
     }
