@@ -6,6 +6,7 @@ import {
   ButtonBuilder,
   ButtonStyle,
   MessageFlags,
+  Routes,
 } from "discord.js";
 import cron from "node-cron";
 import pool from "../db/connection.js";
@@ -37,7 +38,9 @@ export const initDiscordBot = async () => {
   });
 
   client.once(Events.ClientReady, async (c) => {
-    console.log(`🤖 Discord Bot ready! Logged in as ${c.user.tag}`);
+    console.log(
+      `🤖 Discord Bot ready! [PID: ${process.pid}] Logged in as ${c.user.tag}`
+    );
 
     // Register Slash Commands
     try {
@@ -99,30 +102,63 @@ export const initDiscordBot = async () => {
   });
 
   client.on(Events.InteractionCreate, async (interaction) => {
+    // Add a tracking set to prevent multiple responses to the same interaction ID within this process
+    if (!client.handledInteractions) client.handledInteractions = new Set();
+    if (client.handledInteractions.has(interaction.id)) return;
+
     // Handle Button Interactions
     if (interaction.isButton()) {
       if (interaction.customId === "play_locodle") {
+        console.log(
+          `[PID: ${process.pid}] Play button clicked by ${interaction.user.tag}`
+        );
+
         try {
           if (interaction.replied || interaction.deferred) return;
+          client.handledInteractions.add(interaction.id);
 
-          // Respond with InteractionResponseType.LaunchActivity (Type 12)
-          // This launches the activity silently without posting a game invitation
-          await interaction.reply({
-            type: 12,
-          });
+          // Use the raw API to respond with type 12 (LAUNCH_ACTIVITY)
+          await interaction.client.rest.post(
+            Routes.interactionCallback(interaction.id, interaction.token),
+            { body: { type: 12 } }
+          );
+
+          console.log(
+            `[PID: ${process.pid}] Successfully sent LAUNCH_ACTIVITY response.`
+          );
         } catch (error) {
-          console.error("Error launching activity:", error);
-          // Fallback to ephemeral message if type 12 fails
-          try {
-            if (interaction.replied || interaction.deferred) return;
-            await interaction.reply({
-              content:
-                "🌍 **Launch Locodle Activity**\n\nClick here to play: https://discord.com/activities/1442219897131368508",
-              flags: [MessageFlags.Ephemeral],
-            });
-          } catch (innerError) {
-            console.error("Error sending fallback launch message:", innerError);
+          // If we get an "Unknown Interaction" error, it's almost certainly because
+          // another bot process handled it first.
+          if (error.code === 10062) {
+            console.warn(
+              `[PID: ${process.pid}] Interaction ${interaction.id} already handled by another instance.`
+            );
+            return;
           }
+
+          console.error(
+            `[PID: ${process.pid}] Error launching activity:`,
+            error
+          );
+
+          // Fallback only if we haven't replied yet and it's not a race condition
+          try {
+            if (!interaction.replied && !interaction.deferred) {
+              await interaction.reply({
+                content:
+                  "🌍 **Launch Locodle Activity**\n\nClick here to play: https://discord.com/activities/1442219897131368508",
+                flags: [MessageFlags.Ephemeral],
+              });
+            }
+          } catch (innerError) {
+            // Silently ignore if this also fails due to the same race condition
+          }
+        } finally {
+          // Clean up the tracking set after a delay
+          setTimeout(
+            () => client.handledInteractions?.delete(interaction.id),
+            10000
+          );
         }
         return;
       }
