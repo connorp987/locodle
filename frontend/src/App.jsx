@@ -105,6 +105,11 @@ function App() {
       setGameCompleted(parsed.completed || false);
       setGameWon(parsed.won || false);
       setAnswer(parsed.answer || null);
+
+      // Auto-show modal if game is completed
+      if (parsed.completed) {
+        setShowGameOverModal(true);
+      }
     } else {
       // Reset game state for new day
       setGuesses([]);
@@ -136,9 +141,9 @@ function App() {
 
         // Get current local state
         const savedState = localStorage.getItem(`locodle-state-${currentDate}`);
-        const localGuesses = savedState
-          ? JSON.parse(savedState).guesses || []
-          : [];
+        const parsedSaved = savedState ? JSON.parse(savedState) : {};
+        const localGuesses = parsedSaved.guesses || [];
+        const localAnswer = parsedSaved.answer || null;
 
         // If server has more guesses than local, use server data
         if (serverGuesses.length > localGuesses.length) {
@@ -157,9 +162,11 @@ function App() {
 
           // Check if last guess was a win (distance < 50km)
           const lastGuess = transformedGuesses[transformedGuesses.length - 1];
-          if (lastGuess && lastGuess.distance < 50) {
+          const isWin = lastGuess && lastGuess.distance < 50;
+          if (isWin) {
             setGameCompleted(true);
             setGameWon(true);
+            setShowGameOverModal(true);
           }
 
           // Update localStorage with server data
@@ -167,9 +174,9 @@ function App() {
             `locodle-state-${currentDate}`,
             JSON.stringify({
               guesses: transformedGuesses,
-              completed: lastGuess?.distance < 50,
-              won: lastGuess?.distance < 50,
-              answer: null,
+              completed: isWin,
+              won: isWin,
+              answer: localAnswer, // Preserve existing answer if we have it
             })
           );
         }
@@ -293,12 +300,6 @@ function App() {
               "Locodle",
               true
             );
-          } else {
-            setActivityStatus(
-              `Game Over - ${guessCount} guesses`,
-              "Locodle",
-              true
-            );
           }
         } else {
           // Show result modal if game is not completed and history is collapsed
@@ -330,47 +331,86 @@ function App() {
   };
 
   const handleShareAndExit = async () => {
-    if (!isDiscord || !user || !gameCompleted) return;
+    console.log("handleShareAndExit called");
+    // If we're in Discord, we want to try sharing and closing
+    if (isDiscord) {
+      console.log("In Discord environment, starting share process");
 
-    const status = gameWon ? "✅" : "❌";
-    const lastGuess = guesses[guesses.length - 1];
-    const finalDistance = lastGuess.distance;
-    const formattedDistance = useKm
-      ? `${finalDistance.toLocaleString()}km`
-      : `${Math.round(finalDistance * 0.621371).toLocaleString()}mi`;
+      // Close modal immediately so the UI feels responsive
+      setShowGameOverModal(false);
 
-    const guessGrid = guesses
-      .map((g) => {
-        const distPercent = Math.min(100, (g.distance / 10000) * 100);
-        const emoji =
-          g.distance < 50
-            ? "🎯"
-            : distPercent < 20
-            ? "🟢"
-            : distPercent < 40
-            ? "🟡"
-            : distPercent < 60
-            ? "🟠"
-            : distPercent < 80
-            ? "🔴"
-            : "⚫";
-        return emoji;
-      })
-      .join("");
+      // Basic validation
+      if (!user || !gameCompleted || !answer) {
+        console.error("Missing required state for share:", {
+          user: !!user,
+          gameCompleted,
+          answer: !!answer,
+        });
+        await closeActivity();
+        return;
+      }
 
-    const resultMessage =
-      `🌍 **Locodle ${currentDate}**\n\n` +
-      `<@${user.id}> ${status} **${answer.name}**\n` +
-      `${guesses.length} guess${
-        guesses.length > 1 ? "es" : ""
-      } • ${formattedDistance}\n\n` +
-      `${guessGrid}`;
+      const status = gameWon ? "✅" : "❌";
+      const lastGuess = guesses[guesses.length - 1];
 
-    try {
-      await postChannelMessage(resultMessage);
-      await closeActivity();
-    } catch (err) {
-      console.error("Failed to share and exit:", err);
+      // Safety check for lastGuess
+      if (!lastGuess) {
+        console.error("No guesses found to share");
+        await closeActivity();
+        return;
+      }
+
+      const finalDistance = lastGuess.distance;
+      const formattedDistance = useKm
+        ? `${finalDistance.toLocaleString()}km`
+        : `${Math.round(finalDistance * 0.621371).toLocaleString()}mi`;
+
+      const guessGrid = guesses
+        .map((g) => {
+          const distPercent = Math.min(100, (g.distance / 10000) * 100);
+          const emoji =
+            g.distance < 50
+              ? "🎯"
+              : distPercent < 20
+              ? "🟢"
+              : distPercent < 40
+              ? "🟡"
+              : distPercent < 60
+              ? "🟠"
+              : distPercent < 80
+              ? "🔴"
+              : "⚫";
+          return emoji;
+        })
+        .join("");
+
+      const resultMessage =
+        `🌍 **Locodle ${currentDate}**\n\n` +
+        `<@${user.id}> ${status} **${answer.name}**\n` +
+        `${guesses.length} guess${
+          guesses.length > 1 ? "es" : ""
+        } • ${formattedDistance}\n\n` +
+        `${guessGrid}`;
+
+      console.log("Attempting to post message to channel:", resultMessage);
+
+      try {
+        // Attempt to post the message
+        const posted = await postChannelMessage(resultMessage);
+        console.log("Message post status:", posted ? "Success" : "Failed");
+
+        // Always try to close the activity
+        console.log("Closing activity...");
+        await closeActivity();
+      } catch (err) {
+        console.error("Error during share and exit:", err);
+        // Fallback: just close the activity
+        await closeActivity();
+      }
+    } else {
+      console.log("Not in Discord, closing modal only");
+      // If not in Discord, just close the modal
+      setShowGameOverModal(false);
     }
   };
 

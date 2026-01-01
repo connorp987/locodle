@@ -12,20 +12,21 @@ const GameOverModal = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[3000] flex items-center justify-center px-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300">
+    <div
+      className="fixed inset-0 z-[3000] flex items-center justify-center px-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300"
+      onClick={onClose}
+    >
       <div
         className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Close button for web users */}
-        {!isDiscord && (
-          <button
-            onClick={onClose}
-            className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-all"
-          >
-            <X className="w-6 h-6" />
-          </button>
-        )}
+        {/* Close button */}
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-all z-10"
+        >
+          <X className="w-6 h-6" />
+        </button>
 
         <div className="p-8 text-center">
           {gameWon ? (

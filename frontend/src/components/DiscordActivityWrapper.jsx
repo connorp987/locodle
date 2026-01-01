@@ -81,12 +81,22 @@ const DiscordActivityWrapper = ({ children }) => {
 
   // Post a custom result message to the Discord channel (via backend proxy)
   const postChannelMessage = async (messageContent) => {
-    if (!isDiscord || !discordSdk) return false;
+    if (!isDiscord || !discordSdk) {
+      console.warn(
+        "postChannelMessage called outside of Discord or before SDK ready"
+      );
+      return false;
+    }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
 
     try {
       const channelId = discordSdk.channelId;
+      console.log(`Attempting to post message to channel: ${channelId}`);
 
       // Send to backend which will post using the bot
+      // Use full URL if possible or ensure relative URL is handled by proxy
       const response = await fetch("/api/post-result-message", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -94,20 +104,37 @@ const DiscordActivityWrapper = ({ children }) => {
           channelId,
           content: messageContent,
         }),
+        signal: controller.signal,
       });
 
+      clearTimeout(timeoutId);
+      const result = await response.json();
+      console.log("Post message response:", result);
       return response.ok;
     } catch (e) {
-      console.error("Failed to post message to channel:", e);
+      clearTimeout(timeoutId);
+      if (e.name === "AbortError") {
+        console.error("Post message timed out after 5 seconds");
+      } else {
+        console.error("Failed to post message to channel:", e);
+      }
       return false;
     }
   };
 
   // Close the activity
   const closeActivity = async () => {
-    if (!isDiscord || !discordSdk) return;
+    if (!isDiscord || !discordSdk) {
+      console.warn(
+        "closeActivity called outside of Discord or before SDK ready"
+      );
+      return;
+    }
+
     try {
+      console.log("Calling discordSdk.commands.closeActivity()...");
       await discordSdk.commands.closeActivity();
+      console.log("closeActivity command sent successfully");
     } catch (e) {
       console.error("Failed to close activity:", e);
     }
