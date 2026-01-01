@@ -586,9 +586,16 @@ export async function postOrUpdateCompletionMessage(
         const message = await channel.messages.fetch(
           existingMessage.rows[0].message_id
         );
+        const playButton = new ButtonBuilder()
+          .setLabel("Play Today's Challenge")
+          .setStyle(ButtonStyle.Primary)
+          .setCustomId("play_locodle")
+          .setEmoji("🌍");
+        const row = new ActionRowBuilder().addComponents(playButton);
+
         await message.edit({
           content: messageContent,
-          components: [],
+          components: [row],
         });
 
         // Update timestamp
@@ -601,10 +608,17 @@ export async function postOrUpdateCompletionMessage(
           "Failed to edit message, sending new one:",
           editError.message
         );
+        const playButton = new ButtonBuilder()
+          .setLabel("Play Today's Challenge")
+          .setStyle(ButtonStyle.Primary)
+          .setCustomId("play_locodle")
+          .setEmoji("🌍");
+        const row = new ActionRowBuilder().addComponents(playButton);
+
         // Message might have been deleted, send a new one
         const newMessage = await channel.send({
           content: messageContent,
-          components: [],
+          components: [row],
         });
         await pool.query(
           `UPDATE discord_completion_messages SET message_id = $1, updated_at = CURRENT_TIMESTAMP WHERE channel_id = $2 AND date = $3`,
@@ -612,10 +626,17 @@ export async function postOrUpdateCompletionMessage(
         );
       }
     } else {
+      const playButton = new ButtonBuilder()
+        .setLabel("Play Today's Challenge")
+        .setStyle(ButtonStyle.Primary)
+        .setCustomId("play_locodle")
+        .setEmoji("🌍");
+      const row = new ActionRowBuilder().addComponents(playButton);
+
       // Send new message
       const newMessage = await channel.send({
         content: messageContent,
-        components: [],
+        components: [row],
       });
 
       // Store message ID
@@ -666,7 +687,18 @@ export async function postResultMessage(channelId, content) {
       return false;
     }
 
-    await channel.send(content);
+    const playButton = new ButtonBuilder()
+      .setLabel("Play Today's Challenge")
+      .setStyle(ButtonStyle.Primary)
+      .setCustomId("play_locodle")
+      .setEmoji("🌍");
+
+    const row = new ActionRowBuilder().addComponents(playButton);
+
+    await channel.send({
+      content: content,
+      components: [row],
+    });
     console.log(`✅ Result message posted to channel ${channelId}`);
     return true;
   } catch (error) {
