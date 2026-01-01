@@ -174,7 +174,7 @@ export const initDiscordBot = async () => {
     if (interaction.commandName === "join") {
       try {
         if (interaction.replied || interaction.deferred) return;
-        await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
+        await interaction.deferReply();
 
         const guildName = interaction.guild?.name || "Unknown Server";
         const channelName = interaction.channel?.name || "Unknown Channel";
@@ -219,7 +219,7 @@ export const initDiscordBot = async () => {
     if (interaction.commandName === "leave") {
       try {
         if (interaction.replied || interaction.deferred) return;
-        await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
+        await interaction.deferReply();
 
         await pool.query(
           `UPDATE discord_channels SET is_active = false WHERE channel_id = $1`,
@@ -285,7 +285,18 @@ export const initDiscordBot = async () => {
           leaderboardMsg += `${medal} <@${row.user_id}> ${status} - ${row.guesses_count} guesses (${row.score}km)\n`;
         });
 
-        await interaction.editReply(leaderboardMsg);
+        const playButton = new ButtonBuilder()
+          .setLabel("Play Today's Challenge")
+          .setStyle(ButtonStyle.Primary)
+          .setCustomId("play_locodle")
+          .setEmoji("🌍");
+
+        const row = new ActionRowBuilder().addComponents(playButton);
+
+        await interaction.editReply({
+          content: leaderboardMsg,
+          components: [row],
+        });
       } catch (error) {
         console.error("Leaderboard error:", error);
         if (interaction.deferred || interaction.replied) {
