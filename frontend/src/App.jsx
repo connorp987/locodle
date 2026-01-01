@@ -58,6 +58,7 @@ function App() {
     user,
     logout,
     setActivityStatus,
+    postChannelMessage,
     closeActivity,
   } = useDiscord();
 
@@ -426,6 +427,7 @@ function App() {
 
       // Attempt to post the message
       try {
+        await postChannelMessage(resultMessage);
         // Always try to close the activity
         // console.log("Closing activity...");
         await closeActivity();
