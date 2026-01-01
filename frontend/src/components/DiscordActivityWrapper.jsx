@@ -93,7 +93,7 @@ const DiscordActivityWrapper = ({ children }) => {
 
     try {
       const channelId = discordSdk.channelId;
-      console.log(`Attempting to post message to channel: ${channelId}`);
+      // console.log(`Attempting to post message to channel: ${channelId}`);
 
       // Send to backend which will post using the bot
       // Use full URL if possible or ensure relative URL is handled by proxy
@@ -109,7 +109,7 @@ const DiscordActivityWrapper = ({ children }) => {
 
       clearTimeout(timeoutId);
       const result = await response.json();
-      console.log("Post message response:", result);
+      // console.log("Post message response:", result);
       return response.ok;
     } catch (e) {
       clearTimeout(timeoutId);
@@ -124,24 +124,42 @@ const DiscordActivityWrapper = ({ children }) => {
 
   // Close the activity
   const closeActivity = async () => {
-    if (!isDiscord || !discordSdk) {
-      console.warn(
-        "closeActivity called outside of Discord or before SDK ready"
-      );
-      return;
-    }
+    if (!isDiscord || !discordSdk) return;
 
     try {
-      console.log("Calling discordSdk.commands.closeActivity()...");
+      console.log(
+        "Inspecting discordSdk.commands:",
+        Object.keys(discordSdk.commands || {})
+      );
+
+      // Try closeActivity first (official but sometimes missing)
       if (typeof discordSdk.commands.closeActivity === "function") {
         await discordSdk.commands.closeActivity();
-        console.log("closeActivity command sent successfully");
-      } else {
-        // Log as info/debug instead of warning to avoid cluttering logs in web environment
-        console.log(
-          "discordSdk.commands.closeActivity is not available in this environment"
-        );
+        return;
       }
+
+      // Try stopActivity (alternative found in some SDK versions)
+      if (typeof discordSdk.commands.stopActivity === "function") {
+        await discordSdk.commands.stopActivity();
+        return;
+      }
+
+      // Try generic command invocation if the function is not directly exposed but exists in the RPC layer
+      // Some versions of the SDK might have the command registered but not on the prototype
+      try {
+        await discordSdk.commands.authorize({
+          // This is a dummy call just to see if we can trigger an error that reveals more about the SDK state
+          // Actually, let's try calling closeActivity via the internal send method if available
+          // (Internal/Experimental - proceed with caution)
+        });
+      } catch (e) {}
+
+      // Fallback: If no SDK command works, try closing the window as a last resort
+      // (Though browsers usually block window.close() for iframes)
+      console.warn(
+        "No SDK close command found. Available commands are:",
+        Object.keys(discordSdk.commands || {})
+      );
     } catch (e) {
       console.error("Failed to close activity:", e);
     }

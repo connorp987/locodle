@@ -434,16 +434,16 @@ function App() {
 
       console.log("Attempting to post message to channel:", resultMessage);
 
+      // Attempt to post the message
       try {
-        // Attempt to post the message
         const posted = await postChannelMessage(resultMessage);
-        console.log("Message post status:", posted ? "Success" : "Failed");
+        // console.log("Message post status:", posted ? "Success" : "Failed");
 
         // Always try to close the activity
-        console.log("Closing activity...");
+        // console.log("Closing activity...");
         await closeActivity();
       } catch (err) {
-        console.error("Error during share and exit:", err);
+        // console.error("Error during share and exit:", err);
         // Fallback: just close the activity
         await closeActivity();
       }
