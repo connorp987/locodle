@@ -96,7 +96,28 @@ export const initDiscordBot = async () => {
   client.on(Events.InteractionCreate, async (interaction) => {
     // Handle Button Interactions
     if (interaction.isButton()) {
-      // play_locodle is now handled via Link Buttons, so no interaction handler needed for it
+      if (interaction.customId === "play_locodle") {
+        try {
+          // Respond with InteractionResponseType.LaunchActivity (Type 12)
+          // This launches the activity silently without posting a game invitation
+          await interaction.reply({
+            type: 12,
+          });
+        } catch (error) {
+          console.error("Error launching activity:", error);
+          // Fallback to ephemeral message if type 12 fails
+          try {
+            await interaction.reply({
+              content:
+                "🌍 **Launch Locodle Activity**\n\nClick here to play: https://discord.com/activities/1442219897131368508",
+              ephemeral: true,
+            });
+          } catch (innerError) {
+            console.error("Error sending fallback launch message:", innerError);
+          }
+        }
+        return;
+      }
       return;
     }
 
@@ -123,8 +144,8 @@ export const initDiscordBot = async () => {
 
         const playButton = new ButtonBuilder()
           .setLabel("Play Today's Challenge")
-          .setStyle(ButtonStyle.Link)
-          .setURL("https://discord.com/activities/1442219897131368508")
+          .setStyle(ButtonStyle.Primary)
+          .setCustomId("play_locodle")
           .setEmoji("🌍");
 
         const row = new ActionRowBuilder().addComponents(playButton);
@@ -436,8 +457,8 @@ async function postDailySummaryToAllChannels() {
         // Create Play button that launches the Discord Activity
         const playButton = new ButtonBuilder()
           .setLabel("Play Today's Challenge")
-          .setStyle(ButtonStyle.Link)
-          .setURL("https://discord.com/activities/1442219897131368508")
+          .setStyle(ButtonStyle.Primary)
+          .setCustomId("play_locodle")
           .setEmoji("🌍");
 
         const row = new ActionRowBuilder().addComponents(playButton);
@@ -581,6 +602,32 @@ export async function getRegisteredChannelsForGuild(guildId) {
   } catch (error) {
     console.error("Failed to get registered channels:", error);
     return [];
+  }
+}
+
+// Post a custom result message to a Discord channel
+export async function postResultMessage(channelId, content) {
+  if (!client || !client.isReady()) {
+    console.error("Cannot post message: bot not ready");
+    return false;
+  }
+
+  try {
+    const channel = await client.channels.fetch(channelId);
+    if (!channel || !channel.isTextBased()) {
+      console.error(`Channel ${channelId} not found or not text-based`);
+      return false;
+    }
+
+    await channel.send(content);
+    console.log(`✅ Result message posted to channel ${channelId}`);
+    return true;
+  } catch (error) {
+    console.error(
+      `Failed to post message to channel ${channelId}:`,
+      error.message
+    );
+    return false;
   }
 }
 

@@ -18,6 +18,7 @@ const DiscordContext = createContext({
   trackEvent: () => {},
   logout: () => {},
   setActivityStatus: () => {},
+  postChannelMessage: () => {},
   closeActivity: () => {},
 });
 
@@ -78,7 +79,39 @@ const DiscordActivityWrapper = ({ children }) => {
     }
   };
 
-  // Close the activity with a custom message
+  // Post a custom result message to the Discord channel (via backend proxy)
+  const postChannelMessage = async (messageContent) => {
+    if (!isDiscord || !discordSdk) return false;
+
+    try {
+      const channelId = discordSdk.channelId;
+
+      // Send to backend which will post using the bot
+      const response = await fetch("/api/post-result-message", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          channelId,
+          content: messageContent,
+        }),
+      });
+
+      return response.ok;
+    } catch (e) {
+      console.error("Failed to post message to channel:", e);
+      return false;
+    }
+  };
+
+  // Close the activity
+  const closeActivity = async () => {
+    if (!isDiscord || !discordSdk) return;
+    try {
+      await discordSdk.commands.closeActivity();
+    } catch (e) {
+      console.error("Failed to close activity:", e);
+    }
+  };
 
   useEffect(() => {
     // Check if running in Discord - must have frame_id query param for SDK to work
@@ -267,6 +300,8 @@ const DiscordActivityWrapper = ({ children }) => {
           trackEvent,
           logout: handleLogout,
           setActivityStatus,
+          postChannelMessage,
+          closeActivity,
         }}
       >
         {children}
@@ -286,6 +321,8 @@ const DiscordActivityWrapper = ({ children }) => {
           trackEvent,
           logout: handleLogout,
           setActivityStatus,
+          postChannelMessage,
+          closeActivity,
         }}
       >
         {children}
@@ -304,6 +341,8 @@ const DiscordActivityWrapper = ({ children }) => {
           trackEvent,
           logout: handleLogout,
           setActivityStatus,
+          postChannelMessage,
+          closeActivity,
         }}
       >
         <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white">
@@ -344,6 +383,8 @@ const DiscordActivityWrapper = ({ children }) => {
         trackEvent,
         logout: handleLogout,
         setActivityStatus,
+        postChannelMessage,
+        closeActivity,
       }}
     >
       {children}

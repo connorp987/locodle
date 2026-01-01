@@ -1,5 +1,13 @@
 import { useState, useEffect, useRef } from "react";
-import { MapPin, Trophy, Target, Info, Calendar, LogOut } from "lucide-react";
+import {
+  MapPin,
+  Trophy,
+  Target,
+  Info,
+  Calendar,
+  LogOut,
+  Share2,
+} from "lucide-react";
 import GameMap from "./components/GameMap";
 import GuessInput from "./components/GuessInput";
 import GuessHistory from "./components/GuessHistory";
@@ -53,8 +61,16 @@ function App() {
   const [showResultModal, setShowResultModal] = useState(false);
   const [historyExpanded, setHistoryExpanded] = useState(true);
   const [showStatsModal, setShowStatsModal] = useState(false);
-  const { isDiscord, sdk, trackEvent, user, logout, setActivityStatus } =
-    useDiscord();
+  const {
+    isDiscord,
+    sdk,
+    trackEvent,
+    user,
+    logout,
+    setActivityStatus,
+    postChannelMessage,
+    closeActivity,
+  } = useDiscord();
 
   // Helper for fetching data that works in both browser and Discord
   const customFetch = async (url, options = {}) => {
@@ -317,6 +333,51 @@ function App() {
     } finally {
       isSubmitting.current = false;
       setSubmitting(false);
+    }
+  };
+
+  const handleShareAndExit = async () => {
+    if (!isDiscord || !user || !gameCompleted) return;
+
+    const status = gameWon ? "✅" : "❌";
+    const lastGuess = guesses[guesses.length - 1];
+    const finalDistance = lastGuess.distance;
+    const formattedDistance = useKm
+      ? `${finalDistance.toLocaleString()}km`
+      : `${Math.round(finalDistance * 0.621371).toLocaleString()}mi`;
+
+    const guessGrid = guesses
+      .map((g) => {
+        const distPercent = Math.min(100, (g.distance / 10000) * 100);
+        const emoji =
+          g.distance < 50
+            ? "🎯"
+            : distPercent < 20
+            ? "🟢"
+            : distPercent < 40
+            ? "🟡"
+            : distPercent < 60
+            ? "🟠"
+            : distPercent < 80
+            ? "🔴"
+            : "⚫";
+        return emoji;
+      })
+      .join("");
+
+    const resultMessage =
+      `🌍 **Locodle ${currentDate}**\n\n` +
+      `<@${user.id}> ${status} **${answer.name}**\n` +
+      `${guesses.length} guess${
+        guesses.length > 1 ? "es" : ""
+      } • ${formattedDistance}\n\n` +
+      `${guessGrid}`;
+
+    try {
+      await postChannelMessage(resultMessage);
+      await closeActivity();
+    } catch (err) {
+      console.error("Failed to share and exit:", err);
     }
   };
 
@@ -610,6 +671,16 @@ function App() {
                   <p className="text-gray-500 mt-4">
                     Come back tomorrow for a new challenge!
                   </p>
+
+                  {isDiscord && (
+                    <button
+                      onClick={handleShareAndExit}
+                      className="mt-6 w-full bg-primary-600 hover:bg-primary-700 text-white font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg transform hover:scale-[1.02] active:scale-[0.98]"
+                    >
+                      <Share2 className="w-5 h-5" />
+                      Share Results & Exit
+                    </button>
+                  )}
                 </div>
               )}
             </div>

@@ -291,40 +291,23 @@ fastify.post("/api/guess", async (request, reply) => {
           ]
         );
 
-        // If game completed, save to daily_results (with guild_id)
-        if (completed) {
-          await pool.query(
-            `INSERT INTO daily_results (user_id, date, score, guesses_count, won, guild_id)
-             VALUES ($1, $2, $3, $4, $5, $6)
-             ON CONFLICT (user_id, date) DO NOTHING`,
-            [
-              discord_user_id,
-              gameDate,
-              Math.round(distance),
-              request.body.guessCount || 1,
-              won,
-              guild_id || null,
-            ]
-          );
-
-          // Post/update completion message to all registered channels for this guild
-          if (guild_id) {
-            const registeredChannels = await getRegisteredChannelsForGuild(
-              guild_id
-            );
-            for (const channelId of registeredChannels) {
-              postOrUpdateCompletionMessage(
-                channelId,
-                guild_id,
+        if (won) {
+          try {
+            // Track win in DB
+            await pool.query(
+              `INSERT INTO daily_results (user_id, guild_id, date, score, guesses_count, won)
+               VALUES ($1, $2, $3, $4, $5, true)
+               ON CONFLICT (user_id, date) DO UPDATE SET score = $4, guesses_count = $5, won = true`,
+              [
                 discord_user_id,
-                username,
+                guild_id,
+                gameDate,
+                Math.round(distance),
                 request.body.guessCount || 1,
-                won,
-                gameDate
-              ).catch((err) =>
-                console.error("Failed to post completion message:", err)
-              );
-            }
+              ]
+            );
+          } catch (dbError) {
+            fastify.log.error("Failed to save daily result:", dbError);
           }
         }
       } catch (dbError) {
@@ -498,6 +481,30 @@ fastify.post("/api/analytics", async (request, reply) => {
   } catch (error) {
     fastify.log.error(`Analytics proxy error: ${error.message}`);
     return reply.send({ status: "error" });
+  }
+});
+
+// Post custom result message to Discord channel
+fastify.post("/api/post-result-message", async (request, reply) => {
+  const { channelId, content } = request.body;
+
+  if (!channelId || !content) {
+    return reply.code(400).send({ error: "Missing channelId or content" });
+  }
+
+  try {
+    // Import the bot's postResultMessage function
+    const { postResultMessage } = await import("./services/discordBot.js");
+    const success = await postResultMessage(channelId, content);
+
+    if (success) {
+      return reply.send({ status: "sent" });
+    } else {
+      return reply.code(500).send({ error: "Failed to send message" });
+    }
+  } catch (error) {
+    fastify.log.error(`Post result message error: ${error.message}`);
+    return reply.code(500).send({ error: "Internal server error" });
   }
 });
 
