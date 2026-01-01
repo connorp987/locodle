@@ -93,7 +93,6 @@ const DiscordActivityWrapper = ({ children }) => {
 
     try {
       const channelId = discordSdk.channelId;
-      // console.log(`Attempting to post message to channel: ${channelId}`);
 
       // Send to backend which will post using the bot
       // Use full URL if possible or ensure relative URL is handled by proxy
@@ -108,8 +107,6 @@ const DiscordActivityWrapper = ({ children }) => {
       });
 
       clearTimeout(timeoutId);
-      const result = await response.json();
-      // console.log("Post message response:", result);
       return response.ok;
     } catch (e) {
       clearTimeout(timeoutId);
@@ -127,31 +124,10 @@ const DiscordActivityWrapper = ({ children }) => {
     if (!isDiscord || !discordSdk) return;
 
     try {
-      console.log("Attempting to close activity...");
-
-      // Log platform behaviors to see if close is supported
-      if (typeof discordSdk.commands.getPlatformBehaviors === "function") {
-        try {
-          const behaviors = await discordSdk.commands.getPlatformBehaviors();
-          console.log("Platform behaviors:", behaviors);
-        } catch (e) {
-          console.error("Failed to get platform behaviors:", e);
-        }
-      }
-
-      // Try official .close() method
       if (typeof discordSdk.close === "function") {
-        try {
-          console.log("Calling discordSdk.close(1000)...");
-          // Try passing 1000 as a number (standard WebSocket close code)
-          discordSdk.close(1000);
-          return;
-        } catch (closeErr) {
-          console.error("Error during discordSdk.close(1000):", closeErr);
-        }
+        // Use official .close() method with status code 1000 (Normal Closure)
+        discordSdk.close(1000);
       }
-
-      console.warn("No working close method found in SDK.");
     } catch (e) {
       console.error("Failed to close activity:", e);
     }
