@@ -5,6 +5,7 @@ import {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
+  MessageFlags,
 } from "discord.js";
 import cron from "node-cron";
 import pool from "../db/connection.js";
@@ -17,6 +18,10 @@ const SUMMARY_HOUR = process.env.DISCORD_SUMMARY_HOUR || "9";
 const SUMMARY_MINUTE = process.env.DISCORD_SUMMARY_MINUTE || "30";
 
 export const initDiscordBot = async () => {
+  if (client) {
+    return client;
+  }
+
   const token = process.env.DISCORD_BOT_TOKEN;
   if (!token) {
     console.log("⚠️ No DISCORD_BOT_TOKEN found, skipping bot initialization.");
@@ -98,6 +103,8 @@ export const initDiscordBot = async () => {
     if (interaction.isButton()) {
       if (interaction.customId === "play_locodle") {
         try {
+          if (interaction.replied || interaction.deferred) return;
+
           // Respond with InteractionResponseType.LaunchActivity (Type 12)
           // This launches the activity silently without posting a game invitation
           await interaction.reply({
@@ -107,10 +114,11 @@ export const initDiscordBot = async () => {
           console.error("Error launching activity:", error);
           // Fallback to ephemeral message if type 12 fails
           try {
+            if (interaction.replied || interaction.deferred) return;
             await interaction.reply({
               content:
                 "🌍 **Launch Locodle Activity**\n\nClick here to play: https://discord.com/activities/1442219897131368508",
-              ephemeral: true,
+              flags: [MessageFlags.Ephemeral],
             });
           } catch (innerError) {
             console.error("Error sending fallback launch message:", innerError);
@@ -129,7 +137,8 @@ export const initDiscordBot = async () => {
     // /join command - register this channel for daily summaries
     if (interaction.commandName === "join") {
       try {
-        await interaction.deferReply();
+        if (interaction.replied || interaction.deferred) return;
+        await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
 
         const guildName = interaction.guild?.name || "Unknown Server";
         const channelName = interaction.channel?.name || "Unknown Channel";
@@ -173,7 +182,8 @@ export const initDiscordBot = async () => {
     // /leave command - unregister this channel
     if (interaction.commandName === "leave") {
       try {
-        await interaction.deferReply();
+        if (interaction.replied || interaction.deferred) return;
+        await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
 
         await pool.query(
           `UPDATE discord_channels SET is_active = false WHERE channel_id = $1`,
@@ -195,6 +205,7 @@ export const initDiscordBot = async () => {
     // /leaderboard command - show today's leaderboard for this server
     if (interaction.commandName === "leaderboard") {
       try {
+        if (interaction.replied || interaction.deferred) return;
         await interaction.deferReply();
 
         // Get today's date in Eastern Time

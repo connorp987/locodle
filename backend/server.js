@@ -10,6 +10,7 @@ import {
   initDiscordBot,
   postOrUpdateCompletionMessage,
   getRegisteredChannelsForGuild,
+  postResultMessage,
 } from "./services/discordBot.js";
 
 // Initialize Discord Bot
@@ -493,8 +494,6 @@ fastify.post("/api/post-result-message", async (request, reply) => {
   }
 
   try {
-    // Import the bot's postResultMessage function
-    const { postResultMessage } = await import("./services/discordBot.js");
     const success = await postResultMessage(channelId, content);
 
     if (success) {
