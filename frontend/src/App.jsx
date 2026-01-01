@@ -339,12 +339,44 @@ function App() {
       // Close modal immediately so the UI feels responsive
       setShowGameOverModal(false);
 
+      let currentAnswer = answer;
+
+      // If answer is missing (common when reloading a completed game), try to fetch it
+      if (!currentAnswer && gameCompleted) {
+        console.log(
+          "Answer missing but game completed, attempting to fetch..."
+        );
+        try {
+          const response = await customFetch(
+            `${API_BASE_URL}/api/daily-challenge?date=${currentDate}`
+          );
+          if (response.ok) {
+            const data = await response.json();
+            // Note: The backend might only return answer if it's completed on server-side
+            // or we might need a different endpoint. For now, let's see if we can find it
+            // in the last guess or if we need to adjust the backend.
+            if (data.answer) {
+              currentAnswer = data.answer;
+              setAnswer(currentAnswer);
+            } else {
+              // Fallback: If we have guesses, the last guess might have the answer if it was a win
+              const lastGuess = guesses[guesses.length - 1];
+              if (gameWon && lastGuess) {
+                currentAnswer = { name: lastGuess.guess };
+              }
+            }
+          }
+        } catch (e) {
+          console.error("Failed to fetch answer for share:", e);
+        }
+      }
+
       // Basic validation
-      if (!user || !gameCompleted || !answer) {
+      if (!user || !gameCompleted || !currentAnswer) {
         console.error("Missing required state for share:", {
           user: !!user,
           gameCompleted,
-          answer: !!answer,
+          answer: !!currentAnswer,
         });
         await closeActivity();
         return;
@@ -386,7 +418,7 @@ function App() {
 
       const resultMessage =
         `🌍 **Locodle ${currentDate}**\n\n` +
-        `<@${user.id}> ${status} **${answer.name}**\n` +
+        `<@${user.id}> ${status} **${currentAnswer.name}**\n` +
         `${guesses.length} guess${
           guesses.length > 1 ? "es" : ""
         } • ${formattedDistance}\n\n` +
