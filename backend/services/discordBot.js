@@ -96,18 +96,7 @@ export const initDiscordBot = async () => {
   client.on(Events.InteractionCreate, async (interaction) => {
     // Handle Button Interactions
     if (interaction.isButton()) {
-      if (interaction.customId === "play_locodle") {
-        try {
-          await interaction.reply({
-            content:
-              "🌍 **Launch Locodle Activity**\n\nClick here to play: https://discord.com/activities/1442219897131368508",
-            ephemeral: true,
-          });
-        } catch (error) {
-          console.error("Error handling play button:", error);
-        }
-        return;
-      }
+      // play_locodle is now handled via Link Buttons, so no interaction handler needed for it
       return;
     }
 
@@ -134,8 +123,8 @@ export const initDiscordBot = async () => {
 
         const playButton = new ButtonBuilder()
           .setLabel("Play Today's Challenge")
-          .setStyle(ButtonStyle.Primary)
-          .setCustomId("play_locodle")
+          .setStyle(ButtonStyle.Link)
+          .setURL("https://discord.com/activities/1442219897131368508")
           .setEmoji("🌍");
 
         const row = new ActionRowBuilder().addComponents(playButton);
@@ -447,8 +436,8 @@ async function postDailySummaryToAllChannels() {
         // Create Play button that launches the Discord Activity
         const playButton = new ButtonBuilder()
           .setLabel("Play Today's Challenge")
-          .setStyle(ButtonStyle.Primary)
-          .setCustomId("play_locodle")
+          .setStyle(ButtonStyle.Link)
+          .setURL("https://discord.com/activities/1442219897131368508")
           .setEmoji("🌍");
 
         const row = new ActionRowBuilder().addComponents(playButton);
