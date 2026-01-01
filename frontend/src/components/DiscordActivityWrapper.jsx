@@ -137,7 +137,8 @@ const DiscordActivityWrapper = ({ children }) => {
         await discordSdk.commands.closeActivity();
         console.log("closeActivity command sent successfully");
       } else {
-        console.warn(
+        // Log as info/debug instead of warning to avoid cluttering logs in web environment
+        console.log(
           "discordSdk.commands.closeActivity is not available in this environment"
         );
       }

@@ -629,7 +629,23 @@ fastify.get("/api/user/:userId/guesses/:date", async (request, reply) => {
       [userId, date]
     );
 
-    return { guesses: result.rows };
+    const guesses = result.rows;
+    let answer = null;
+
+    // If any guess has distance < 50, they've won, so we can return the answer
+    const hasWon = guesses.some((g) => g.distance < 50);
+    if (hasWon) {
+      const dailyLocation = await getDailyLocation(date);
+      if (dailyLocation) {
+        answer = {
+          name: dailyLocation.name,
+          lat: dailyLocation.lat,
+          lng: dailyLocation.lng,
+        };
+      }
+    }
+
+    return { guesses, answer };
   } catch (error) {
     fastify.log.error(error);
     return reply.code(500).send({ error: "Failed to fetch guesses" });

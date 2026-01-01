@@ -137,6 +137,7 @@ function App() {
 
         const data = await response.json();
         const serverGuesses = data.guesses || [];
+        const serverAnswer = data.answer || null;
         if (serverGuesses.length === 0) return;
 
         // Get current local state
@@ -145,8 +146,11 @@ function App() {
         const localGuesses = parsedSaved.guesses || [];
         const localAnswer = parsedSaved.answer || null;
 
-        // If server has more guesses than local, use server data
-        if (serverGuesses.length > localGuesses.length) {
+        // If server has more guesses than local, or we are missing the answer locally
+        if (
+          serverGuesses.length > localGuesses.length ||
+          (!localAnswer && serverAnswer)
+        ) {
           // Transform server format to match local format
           const transformedGuesses = serverGuesses.map((g) => ({
             guess: g.location_name,
@@ -163,9 +167,13 @@ function App() {
           // Check if last guess was a win (distance < 50km)
           const lastGuess = transformedGuesses[transformedGuesses.length - 1];
           const isWin = lastGuess && lastGuess.distance < 50;
+
+          const finalAnswer = serverAnswer || localAnswer;
+
           if (isWin) {
             setGameCompleted(true);
             setGameWon(true);
+            setAnswer(finalAnswer);
             setShowGameOverModal(true);
           }
 
@@ -176,7 +184,7 @@ function App() {
               guesses: transformedGuesses,
               completed: isWin,
               won: isWin,
-              answer: localAnswer, // Preserve existing answer if we have it
+              answer: finalAnswer,
             })
           );
         }
