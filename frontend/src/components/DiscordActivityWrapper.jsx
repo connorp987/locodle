@@ -1,4 +1,10 @@
-import { useEffect, useState, createContext, useContext } from "react";
+import {
+  useEffect,
+  useState,
+  useCallback,
+  createContext,
+  useContext,
+} from "react";
 import { DiscordSDK } from "@discord/embedded-app-sdk";
 
 // Placeholder Client ID - User needs to replace this
@@ -33,94 +39,103 @@ const DiscordActivityWrapper = ({ children }) => {
   const [webLoginRequired, setWebLoginRequired] = useState(false);
 
   // Analytics Helper
-  const trackEvent = async (eventName, params = {}) => {
-    if (isDiscord) {
-      // Send to Backend Proxy
+  const trackEvent = useCallback(
+    async (eventName, params = {}) => {
+      if (isDiscord) {
+        // Send to Backend Proxy
+        try {
+          // Use relative URL for proxy
+          await fetch("/api/analytics", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              event_name: eventName,
+              params: params,
+              client_id: currentUser?.id || "anonymous_discord_user",
+            }),
+          });
+        } catch (e) {
+          console.error("Failed to send analytics", e);
+        }
+      } else {
+        // Standard Web GA
+        if (window.gtag) {
+          window.gtag("event", eventName, params);
+        }
+      }
+    },
+    [isDiscord, currentUser?.id]
+  );
+
+  // Update Discord Activity status (Rich Presence)
+  const setActivityStatus = useCallback(
+    async (state, details, persist = false) => {
+      if (!isDiscord || !discordSdk) return;
+
       try {
-        // Use relative URL for proxy
-        await fetch("/api/analytics", {
+        const activityConfig = {
+          state: state, // e.g., "Completed in 3 guesses!"
+          details: details, // e.g., "Playing Locodle"
+        };
+
+        // If persist is true, try to make the status persist after instance ends
+        if (persist) {
+          activityConfig.instance = false;
+        }
+
+        await discordSdk.commands.setActivity(activityConfig);
+      } catch (e) {
+        console.error("Failed to set activity status:", e);
+      }
+    },
+    [isDiscord, discordSdk]
+  );
+
+  // Post a custom result message to the Discord channel (via backend proxy)
+  const postChannelMessage = useCallback(
+    async (messageContent) => {
+      if (!isDiscord || !discordSdk) {
+        console.warn(
+          "postChannelMessage called outside of Discord or before SDK ready"
+        );
+        return false;
+      }
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+
+      try {
+        const channelId = discordSdk.channelId;
+
+        // Send to backend which will post using the bot
+        // Use full URL if possible or ensure relative URL is handled by proxy
+        const response = await fetch("/api/post-result-message", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            event_name: eventName,
-            params: params,
-            client_id: currentUser?.id || "anonymous_discord_user",
+            channelId,
+            content: messageContent,
           }),
+          signal: controller.signal,
         });
+
+        clearTimeout(timeoutId);
+        return response.ok;
       } catch (e) {
-        console.error("Failed to send analytics", e);
+        clearTimeout(timeoutId);
+        if (e.name === "AbortError") {
+          console.error("Post message timed out after 5 seconds");
+        } else {
+          console.error("Failed to post message to channel:", e);
+        }
+        return false;
       }
-    } else {
-      // Standard Web GA
-      if (window.gtag) {
-        window.gtag("event", eventName, params);
-      }
-    }
-  };
-
-  // Update Discord Activity status (Rich Presence)
-  const setActivityStatus = async (state, details, persist = false) => {
-    if (!isDiscord || !discordSdk) return;
-
-    try {
-      const activityConfig = {
-        state: state, // e.g., "Completed in 3 guesses!"
-        details: details, // e.g., "Playing Locodle"
-      };
-
-      // If persist is true, try to make the status persist after instance ends
-      if (persist) {
-        activityConfig.instance = false;
-      }
-
-      await discordSdk.commands.setActivity(activityConfig);
-    } catch (e) {
-      console.error("Failed to set activity status:", e);
-    }
-  };
-
-  // Post a custom result message to the Discord channel (via backend proxy)
-  const postChannelMessage = async (messageContent) => {
-    if (!isDiscord || !discordSdk) {
-      console.warn(
-        "postChannelMessage called outside of Discord or before SDK ready"
-      );
-      return false;
-    }
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
-
-    try {
-      const channelId = discordSdk.channelId;
-
-      // Send to backend which will post using the bot
-      // Use full URL if possible or ensure relative URL is handled by proxy
-      const response = await fetch("/api/post-result-message", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          channelId,
-          content: messageContent,
-        }),
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-      return response.ok;
-    } catch (e) {
-      clearTimeout(timeoutId);
-      if (e.name === "AbortError") {
-        console.error("Post message timed out after 5 seconds");
-      } else {
-        console.error("Failed to post message to channel:", e);
-      }
-      return false;
-    }
-  };
+    },
+    [isDiscord, discordSdk]
+  );
 
   // Close the activity
-  const closeActivity = async () => {
+  const closeActivity = useCallback(async () => {
     if (!isDiscord || !discordSdk) return;
 
     try {
@@ -131,13 +146,12 @@ const DiscordActivityWrapper = ({ children }) => {
     } catch (e) {
       console.error("Failed to close activity:", e);
     }
-  };
+  }, [isDiscord, discordSdk]);
 
   useEffect(() => {
     // Check if running in Discord - must have frame_id query param for SDK to work
     const urlParams = new URLSearchParams(window.location.search);
     const hasFrameId = urlParams.has("frame_id");
-    const inDiscord = hasFrameId || document.referrer.includes("discord.com");
 
     // Only set isDiscord true if we have frame_id (required for SDK)
     setIsDiscord(hasFrameId);

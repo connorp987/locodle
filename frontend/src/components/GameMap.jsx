@@ -1,4 +1,3 @@
-import { useState } from "react";
 import {
   MapContainer,
   TileLayer,
@@ -24,7 +23,7 @@ Icon.Default.mergeOptions({
 });
 
 // Component to handle map clicks
-const MapClickHandler = ({ onMapClick, tempMarker, onConfirm }) => {
+const MapClickHandler = ({ onMapClick, tempMarker }) => {
   useMapEvents({
     click(e) {
       onMapClick(e.latlng);
@@ -58,7 +57,7 @@ const MapClickHandler = ({ onMapClick, tempMarker, onConfirm }) => {
         <div className="text-center p-2">
           <p className="font-bold text-orange-600">📍 Selected Location</p>
           <p className="text-xs text-gray-600 mt-1">
-            Click "Confirm Location" below
+            Click &quot;Confirm Location&quot; below
           </p>
         </div>
       </Popup>

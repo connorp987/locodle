@@ -1,16 +1,7 @@
-import { useState, useEffect, useRef } from "react";
-import {
-  MapPin,
-  Trophy,
-  Target,
-  Info,
-  Calendar,
-  LogOut,
-  Share2,
-} from "lucide-react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { MapPin, Trophy, Info, Calendar, LogOut } from "lucide-react";
 import GameMap from "./components/GameMap";
 import GuessInput from "./components/GuessInput";
-import GuessHistory from "./components/GuessHistory";
 import GameStats from "./components/GameStats";
 import HintsPanel from "./components/HintsPanel";
 import GuessResultModal from "./components/GuessResultModal";
@@ -45,8 +36,6 @@ function App() {
   const [currentDate, setCurrentDate] = useState(() => {
     // Get current time in Eastern Time
     const now = new Date();
-    const utcOffset = now.getTimezoneOffset() * 60000; // offset in milliseconds
-    const utcTime = now.getTime() + utcOffset;
     // Eastern Time is UTC-5 (or UTC-4 during DST)
     // Use Intl API to get the correct offset
     const easternTime = new Date(
@@ -65,33 +54,57 @@ function App() {
   const [showStatsModal, setShowStatsModal] = useState(false);
   const {
     isDiscord,
-    sdk,
     trackEvent,
     user,
     logout,
     setActivityStatus,
-    postChannelMessage,
     closeActivity,
   } = useDiscord();
 
   // Helper for fetching data that works in both browser and Discord
-  const customFetch = async (url, options = {}) => {
-    if (isDiscord) {
-      // In Discord, we must use relative URLs to satisfy CSP.
-      // Discord's proxy will route these based on the URL Mappings in the Developer Portal.
-      // We strip the API_BASE_URL to get the relative path (e.g. "/api/guess").
-      const relativeUrl = url.replace(API_BASE_URL, "");
-      return fetch(relativeUrl, options);
-    } else {
-      // Standard Browser Fetch
-      return fetch(url, options);
+  const customFetch = useCallback(
+    async (url, options = {}) => {
+      if (isDiscord) {
+        // In Discord, we must use relative URLs to satisfy CSP.
+        // Discord's proxy will route these based on the URL Mappings in the Developer Portal.
+        // We strip the API_BASE_URL to get the relative path (e.g. "/api/guess").
+        const relativeUrl = url.replace(API_BASE_URL, "");
+        return fetch(relativeUrl, options);
+      } else {
+        // Standard Browser Fetch
+        return fetch(url, options);
+      }
+    },
+    [isDiscord]
+  );
+
+  const loadAvailableDates = useCallback(async () => {
+    try {
+      const response = await customFetch(`${API_BASE_URL}/api/days`);
+      const data = await response.json();
+      setAvailableDates(data.dates || []);
+    } catch (error) {
+      console.error("Failed to load available dates:", error);
     }
-  };
+  }, [customFetch]);
+
+  const loadDailyChallenge = useCallback(async () => {
+    try {
+      const response = await customFetch(
+        `${API_BASE_URL}/api/daily-challenge?date=${currentDate}`
+      );
+      if (!response.ok) throw new Error("Failed to load challenge");
+      const data = await response.json();
+      setChallenge(data);
+    } catch (error) {
+      console.error("Failed to load daily challenge:", error);
+    }
+  }, [currentDate, customFetch]);
 
   useEffect(() => {
     loadAvailableDates();
     trackEvent("page_view", { page_title: "Daily Challenge" });
-  }, []);
+  }, [loadAvailableDates, trackEvent]);
 
   // Load game state when date changes
   useEffect(() => {
@@ -122,7 +135,7 @@ function App() {
     loadDailyChallenge().finally(() => {
       setLoading(false);
     });
-  }, [currentDate]);
+  }, [currentDate, loadDailyChallenge]);
 
   // Sync guesses from server when user becomes available (cross-device sync)
   useEffect(() => {
@@ -194,7 +207,7 @@ function App() {
     };
 
     syncServerGuesses();
-  }, [user?.id, currentDate]);
+  }, [user.id, currentDate, customFetch]);
 
   // Save unit preference when it changes
   useEffect(() => {
@@ -205,29 +218,6 @@ function App() {
   useEffect(() => {
     localStorage.setItem("locodle-game-mode", gameMode);
   }, [gameMode]);
-
-  const loadAvailableDates = async () => {
-    try {
-      const response = await customFetch(`${API_BASE_URL}/api/days`);
-      const data = await response.json();
-      setAvailableDates(data.dates || []);
-    } catch (error) {
-      console.error("Failed to load available dates:", error);
-    }
-  };
-
-  const loadDailyChallenge = async () => {
-    try {
-      const response = await customFetch(
-        `${API_BASE_URL}/api/daily-challenge?date=${currentDate}`
-      );
-      if (!response.ok) throw new Error("Failed to load challenge");
-      const data = await response.json();
-      setChallenge(data);
-    } catch (error) {
-      console.error("Failed to load challenge:", error);
-    }
-  };
 
   // Removed loadGameState as we now use localStorage
 
@@ -436,9 +426,6 @@ function App() {
 
       // Attempt to post the message
       try {
-        const posted = await postChannelMessage(resultMessage);
-        // console.log("Message post status:", posted ? "Success" : "Failed");
-
         // Always try to close the activity
         // console.log("Closing activity...");
         await closeActivity();
@@ -492,7 +479,9 @@ function App() {
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="text-center">
           <MapPin className="w-16 h-16 text-primary-600 animate-pulse mx-auto mb-4" />
-          <p className="text-xl text-gray-700">Loading today's challenge...</p>
+          <p className="text-xl text-gray-700">
+            Loading today&apos;s challenge...
+          </p>
         </div>
       </div>
     );
