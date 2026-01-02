@@ -6,7 +6,12 @@ import {
   getAvailableDates,
 } from "./services/locationGenerator.js";
 import pool from "./db/connection.js";
-import { initDiscordBot, postResultMessage } from "./services/discordBot.js";
+import {
+  initDiscordBot,
+  postResultMessage,
+  getRegisteredChannelsForGuild,
+  postOrUpdateCompletionMessage,
+} from "./services/discordBot.js";
 
 // Initialize Discord Bot
 initDiscordBot();
@@ -293,7 +298,7 @@ fastify.post("/api/guess", async (request, reply) => {
             await pool.query(
               `INSERT INTO daily_results (user_id, guild_id, date, score, guesses_count, won)
                VALUES ($1, $2, $3, $4, $5, true)
-               ON CONFLICT (user_id, date) DO UPDATE SET score = $4, guesses_count = $5, won = true`,
+               ON CONFLICT (user_id, date) DO UPDATE SET score = $4, guesses_count = $5, won = true, guild_id = $2`,
               [
                 discord_user_id,
                 guild_id,
@@ -302,8 +307,27 @@ fastify.post("/api/guess", async (request, reply) => {
                 request.body.guessCount || 1,
               ]
             );
+
+            // If we have a guild_id, post to all registered channels in that guild
+            if (guild_id) {
+              const channels = await getRegisteredChannelsForGuild(guild_id);
+              for (const channelId of channels) {
+                await postOrUpdateCompletionMessage(
+                  channelId,
+                  guild_id,
+                  discord_user_id,
+                  username,
+                  request.body.guessCount || 1,
+                  true,
+                  gameDate
+                );
+              }
+            }
           } catch (dbError) {
-            fastify.log.error("Failed to save daily result:", dbError);
+            fastify.log.error(
+              "Failed to save daily result or post message:",
+              dbError
+            );
           }
         }
       } catch (dbError) {

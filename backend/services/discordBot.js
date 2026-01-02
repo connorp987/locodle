@@ -201,8 +201,21 @@ export const initDiscordBot = async () => {
         if (interaction.replied || interaction.deferred) return;
         await interaction.deferReply();
 
-        const guildName = interaction.guild?.name || "Unknown Server";
-        const channelName = interaction.channel?.name || "Unknown Channel";
+        let guildName = interaction.guild?.name;
+        let channelName = interaction.channel?.name;
+
+        // If guild name is missing, try fetching the guild
+        if (!guildName && guildId) {
+          try {
+            const guild = await client.guilds.fetch(guildId);
+            guildName = guild?.name;
+          } catch (fetchError) {
+            console.error("Failed to fetch guild:", fetchError);
+          }
+        }
+
+        guildName = guildName || "Unknown Server";
+        channelName = channelName || "Unknown Channel";
 
         // Insert or update channel registration
         await pool.query(
@@ -459,9 +472,16 @@ async function postDailySummaryToAllChannels() {
         );
       } catch (channelError) {
         console.error(
-          `Failed to post to channel ${channelRow.channel_id}:`,
+          `❌ Failed to post daily summary to channel ${channelRow.channel_id} (${channelRow.guild_name}):`,
           channelError.message
         );
+        if (channelError.code === 50001) {
+          console.error(`Missing Access for channel ${channelRow.channel_id}.`);
+        } else if (channelError.code === 50013) {
+          console.error(
+            `Missing Permissions for channel ${channelRow.channel_id}.`
+          );
+        }
       }
     }
   } catch (error) {
@@ -642,13 +662,24 @@ export async function postResultMessage(channelId, content) {
       content: content,
       components: [row],
     });
-    console.log(`✅ Result message posted to channel ${channelId}`);
+    console.log(
+      `✅ Result message successfully posted to channel ${channelId}`
+    );
     return true;
   } catch (error) {
     console.error(
-      `Failed to post message to channel ${channelId}:`,
+      `❌ Failed to post message to channel ${channelId}:`,
       error.message
     );
+    if (error.code === 50001) {
+      console.error(
+        `Missing Access for channel ${channelId}. The bot might not be in the server or lacks permissions.`
+      );
+    } else if (error.code === 50013) {
+      console.error(
+        `Missing Permissions for channel ${channelId}. The bot lacks Send Messages permission.`
+      );
+    }
     return false;
   }
 }
