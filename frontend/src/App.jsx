@@ -123,11 +123,6 @@ function App() {
       setGameCompleted(parsed.completed || false);
       setGameWon(parsed.won || false);
       setAnswer(parsed.answer || null);
-
-      // Auto-show modal if game is completed
-      if (parsed.completed) {
-        setShowGameOverModal(true);
-      }
     } else {
       // Reset game state for new day
       setGuesses([]);
