@@ -2,14 +2,12 @@ import pool from "../db/connection.js";
 
 // Get today's date in Eastern Time
 function getEasternDateString() {
-  const now = new Date();
-  const easternTime = new Date(
-    now.toLocaleString("en-US", { timeZone: "America/New_York" })
-  );
-  const year = easternTime.getFullYear();
-  const month = String(easternTime.getMonth() + 1).padStart(2, "0");
-  const day = String(easternTime.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
 }
 
 async function clearTodayLocation() {
@@ -33,7 +31,7 @@ async function clearTodayLocation() {
 
     // Delete location for today
     const locResult = await pool.query(
-      "DELETE FROM locations WHERE game_date = $1 AND id > 15 RETURNING *",
+      "DELETE FROM locations WHERE game_date = $1 AND is_daily_challenge = true RETURNING *",
       [today]
     );
 

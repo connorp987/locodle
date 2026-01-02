@@ -3988,9 +3988,9 @@ export async function getLocationForDate(date = null) {
 
   try {
     // Check if we already have a location for this date
-    // Exclude seed locations (id <= 15) - they should not be used as daily challenges
+    // Use is_daily_challenge flag instead of fragile ID checks
     let result = await pool.query(
-      "SELECT * FROM locations WHERE game_date = $1 AND is_active = true AND id > 15 ORDER BY created_at DESC LIMIT 1",
+      "SELECT * FROM locations WHERE game_date = $1 AND is_active = true AND is_daily_challenge = true LIMIT 1",
       [targetDate]
     );
 
@@ -4030,15 +4030,6 @@ export async function getLocationForDate(date = null) {
       `❌ Error getting location for date ${targetDate}:`,
       error.message
     );
-    // If game_date column doesn't exist, this will fail - log detailed error
-    if (
-      error.message.includes("column") &&
-      error.message.includes("game_date")
-    ) {
-      console.error(
-        "⚠️  CRITICAL: game_date column missing! Run migrations: npm run init-db"
-      );
-    }
     throw error;
   }
 }
@@ -4046,9 +4037,9 @@ export async function getLocationForDate(date = null) {
 // Get all available dates that have games
 export async function getAvailableDates() {
   try {
-    // Use the game_date column which is already stored as ET date
+    // Use is_daily_challenge flag for precision
     const result = await pool.query(
-      "SELECT DISTINCT TO_CHAR(game_date, 'YYYY-MM-DD') as date FROM locations WHERE is_active = true AND game_date IS NOT NULL ORDER BY date DESC"
+      "SELECT DISTINCT TO_CHAR(game_date, 'YYYY-MM-DD') as date FROM locations WHERE is_active = true AND is_daily_challenge = true ORDER BY date DESC"
     );
     return result.rows.map((row) => row.date);
   } catch (error) {
@@ -4060,12 +4051,10 @@ export async function getAvailableDates() {
 // Generate a new random location
 async function generateNewLocation() {
   try {
-    // Get ALL location names from the database to avoid duplicates
-    // This includes seed locations and any generated ones from the past 30 days
+    // Get ALL location names from the database to avoid duplicates in the last 30 days
     const existingResult = await pool.query(
       `SELECT DISTINCT name FROM locations 
-       WHERE created_at > NOW() - INTERVAL '30 days' 
-       OR id <= 20` // Also exclude the first 20 seed locations (easy ones)
+       WHERE created_at > NOW() - INTERVAL '30 days'`
     );
 
     const recentNames = new Set(existingResult.rows.map((row) => row.name));
@@ -4130,9 +4119,14 @@ async function generateNewLocation() {
     const hints = generateHints(randomLocation);
 
     // Insert into database with game_date set to today in Eastern Time
+    // Use ON CONFLICT to handle race conditions where another instance generated today's location first
     const todayEastern = getEasternDateString();
     const result = await pool.query(
-      "INSERT INTO locations (name, lat, lng, country, hints, game_date) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *",
+      `INSERT INTO locations (name, lat, lng, country, hints, game_date, is_daily_challenge) 
+       VALUES ($1, $2, $3, $4, $5, $6, true) 
+       ON CONFLICT (game_date) WHERE is_daily_challenge = true 
+       DO UPDATE SET game_date = EXCLUDED.game_date -- No-op to trigger returning existing row
+       RETURNING *`,
       [
         randomLocation.name,
         randomLocation.lat,
@@ -4145,7 +4139,7 @@ async function generateNewLocation() {
 
     const location = result.rows[0];
     console.log(
-      `🎯 Generated new location for ${todayEastern}: ${location.name}, ${location.country}`
+      `🎯 Successfully settled on location for ${todayEastern}: ${location.name}, ${location.country}`
     );
 
     return {

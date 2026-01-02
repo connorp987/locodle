@@ -13,6 +13,19 @@ CREATE TABLE IF NOT EXISTS locations (
 -- Create index for faster queries
 CREATE INDEX IF NOT EXISTS idx_locations_active ON locations(is_active);
 
+-- Add unique constraint if it doesn't exist
+-- 1. Clean up potential duplicates first to ensure constraint can be added
+DELETE FROM locations a USING locations b
+WHERE a.id > b.id 
+AND a.name = b.name 
+AND a.country = b.country;
+
+-- 2. Add the constraint as a proper table constraint
+-- We drop any existing constraint with the same name first
+-- This automatically drops the associated unique index
+ALTER TABLE locations DROP CONSTRAINT IF EXISTS unique_name_country;
+ALTER TABLE locations ADD CONSTRAINT unique_name_country UNIQUE (name, country);
+
 -- Insert initial locations
 INSERT INTO locations (name, lat, lng, country, hints) VALUES
 ('Eiffel Tower', 48.8584, 2.2945, 'France', 
@@ -58,7 +71,8 @@ INSERT INTO locations (name, lat, lng, country, hints) VALUES
  '["Iconic snow-capped volcanic mountain", "Highest peak in Japan", "Sacred mountain and popular climbing destination"]'),
 
 ('Sagrada Familia', 41.4036, 2.1744, 'Spain',
- '["Unfinished basilica designed by Antoni Gaudí", "Construction began in 1882", "Located in Barcelona"]');
+ '["Unfinished basilica designed by Antoni Gaudí", "Construction began in 1882", "Located in Barcelona"]')
+ON CONFLICT (name, country) DO NOTHING;
 
 -- Create game_sessions table for tracking user games
 CREATE TABLE IF NOT EXISTS game_sessions (
