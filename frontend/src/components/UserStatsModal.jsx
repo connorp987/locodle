@@ -140,7 +140,7 @@ const UserStatsModal = ({ user, isDiscord, onClose }) => {
                 {getAvatarUrl() ? (
                   <img
                     src={getAvatarUrl()}
-                    alt={user.username}
+                    alt={user?.username}
                     className="w-14 h-14 rounded-full"
                   />
                 ) : (
@@ -150,7 +150,7 @@ const UserStatsModal = ({ user, isDiscord, onClose }) => {
                 )}
                 <div>
                   <h4 className="font-bold text-lg text-gray-900">
-                    {user.username}
+                    {user?.username}
                   </h4>
                   <p className="text-sm text-gray-500">
                     {stats.stats.gamesPlayed} games played

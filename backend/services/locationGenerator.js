@@ -4048,10 +4048,9 @@ export async function getLocationForDate(date = null) {
 // Get all available dates that have games
 export async function getAvailableDates() {
   try {
-    // Convert created_at to Eastern Time before extracting the date
-    // This ensures we get the correct date based on when it was created in ET, not UTC
+    // Use the game_date column which is already stored as ET date
     const result = await pool.query(
-      "SELECT DISTINCT DATE(created_at AT TIME ZONE 'UTC' AT TIME ZONE 'America/New_York') as date FROM locations WHERE is_active = true ORDER BY date DESC"
+      "SELECT DISTINCT TO_CHAR(game_date, 'YYYY-MM-DD') as date FROM locations WHERE is_active = true AND game_date IS NOT NULL ORDER BY date DESC"
     );
     return result.rows.map((row) => row.date);
   } catch (error) {

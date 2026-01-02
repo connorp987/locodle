@@ -83,7 +83,14 @@ function App() {
     try {
       const response = await customFetch(`${API_BASE_URL}/api/days`);
       const data = await response.json();
-      setAvailableDates(data.dates || []);
+      // Normalize dates to YYYY-MM-DD string format
+      const normalized = (data.dates || []).map((d) => {
+        if (!d) return d;
+        // If it's an ISO string or has time component, strip it
+        const dateStr = String(d);
+        return dateStr.includes("T") ? dateStr.split("T")[0] : dateStr;
+      });
+      setAvailableDates(normalized);
     } catch (error) {
       console.error("Failed to load available dates:", error);
     }
