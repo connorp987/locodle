@@ -416,7 +416,7 @@ function App() {
 
       const resultMessage =
         `🌍 **Locodle ${currentDate}**\n\n` +
-        `<@${user?.id}> ${status} **${currentAnswer.name}**\n` +
+        `<@${user?.id}> ${status}\n` +
         `${guesses.length} guess${
           guesses.length > 1 ? "es" : ""
         } • ${formattedDistance}\n\n` +
