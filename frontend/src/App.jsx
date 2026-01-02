@@ -34,17 +34,12 @@ function App() {
     return stored || "hard"; // Default to Hard mode
   });
   const [currentDate, setCurrentDate] = useState(() => {
-    // Get current time in Eastern Time
-    const now = new Date();
-    // Eastern Time is UTC-5 (or UTC-4 during DST)
-    // Use Intl API to get the correct offset
-    const easternTime = new Date(
-      now.toLocaleString("en-US", { timeZone: "America/New_York" })
-    );
-    const year = easternTime.getFullYear();
-    const month = String(easternTime.getMonth() + 1).padStart(2, "0");
-    const day = String(easternTime.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/New_York",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
   });
   const [availableDates, setAvailableDates] = useState([]);
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -83,12 +78,14 @@ function App() {
     try {
       const response = await customFetch(`${API_BASE_URL}/api/days`);
       const data = await response.json();
-      // Normalize dates to YYYY-MM-DD string format
+      // Normalize dates to clean YYYY-MM-DD strings to fix picker formatting
       const normalized = (data.dates || []).map((d) => {
-        if (!d) return d;
-        // If it's an ISO string or has time component, strip it
+        if (!d) return "";
         const dateStr = String(d);
-        return dateStr.includes("T") ? dateStr.split("T")[0] : dateStr;
+        // Extract YYYY-MM-DD from ISO (T) or space-separated date strings
+        if (dateStr.includes("T")) return dateStr.split("T")[0];
+        if (dateStr.includes(" ")) return dateStr.split(" ")[0]; // Handle "2026-01-01 00:00:00"
+        return dateStr;
       });
       setAvailableDates(normalized);
     } catch (error) {

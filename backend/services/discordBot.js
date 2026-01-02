@@ -368,9 +368,19 @@ export const postDailyResult = async (channelId, result) => {
       );
     }
   } catch (error) {
-    console.error("Failed to post result:", error);
+    console.error("❌ Failed to post result:", error.message);
   }
 };
+
+// Helper to get ET date string (YYYY-MM-DD)
+function getETDateString(date = new Date()) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
 
 // Post daily summary to all registered channels
 async function postDailySummaryToAllChannels() {
@@ -392,11 +402,11 @@ async function postDailySummaryToAllChannels() {
 
     // Get yesterday's date in Eastern Time (so we don't spoil today's challenge)
     const now = new Date();
-    const easternNow = new Date(
-      now.toLocaleString("en-US", { timeZone: "America/New_York" })
-    );
-    easternNow.setDate(easternNow.getDate() - 1);
-    const yesterdayStr = easternNow.toISOString().split("T")[0];
+    // Subtract 24 hours to get yesterday
+    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const yesterdayStr = getETDateString(yesterday);
+
+    console.log(`📊 Generating daily summary for ${yesterdayStr} (ET)...`);
 
     // Get yesterday's location using the same function as the main app
     const location = await getLocationForDate(yesterdayStr);
