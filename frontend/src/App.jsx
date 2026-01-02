@@ -145,7 +145,7 @@ function App() {
     const syncServerGuesses = async () => {
       try {
         const response = await customFetch(
-          `${API_BASE_URL}/api/user/${user.id}/guesses/${currentDate}`
+          `${API_BASE_URL}/api/user/${user?.id}/guesses/${currentDate}`
         );
         if (!response.ok) return;
 
@@ -208,7 +208,7 @@ function App() {
     };
 
     syncServerGuesses();
-  }, [user.id, currentDate, customFetch]);
+  }, [user?.id, currentDate, customFetch]);
 
   // Save unit preference when it changes
   useEffect(() => {
@@ -417,7 +417,7 @@ function App() {
 
       const resultMessage =
         `🌍 **Locodle ${currentDate}**\n\n` +
-        `<@${user.id}> ${status} **${currentAnswer.name}**\n` +
+        `<@${user?.id}> ${status} **${currentAnswer.name}**\n` +
         `${guesses.length} guess${
           guesses.length > 1 ? "es" : ""
         } • ${formattedDistance}\n\n` +
@@ -507,13 +507,13 @@ function App() {
               <div className="flex items-center gap-2 md:hidden">
                 <img
                   src={
-                    user.avatar
-                      ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`
+                    user?.avatar
+                      ? `https://cdn.discordapp.com/avatars/${user?.id}/${user?.avatar}.png`
                       : `https://cdn.discordapp.com/embed/avatars/${
-                          parseInt(user.id) % 5
+                          parseInt(user?.id || "0") % 5
                         }.png`
                   }
-                  alt={user.username}
+                  alt={user?.username}
                   className="w-8 h-8 rounded-full"
                 />
                 {!isDiscord && (
@@ -628,17 +628,17 @@ function App() {
               <div className="hidden md:flex items-center gap-2 pl-3 border-l border-gray-200">
                 <img
                   src={
-                    user.avatar
-                      ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`
+                    user?.avatar
+                      ? `https://cdn.discordapp.com/avatars/${user?.id}/${user?.avatar}.png`
                       : `https://cdn.discordapp.com/embed/avatars/${
-                          parseInt(user.id) % 5
+                          parseInt(user?.id || "0") % 5
                         }.png`
                   }
-                  alt={user.username}
+                  alt={user?.username}
                   className="w-8 h-8 rounded-full"
                 />
                 <span className="text-sm font-medium text-gray-700">
-                  {user.username}
+                  {user?.username}
                 </span>
                 {!isDiscord && (
                   <button

@@ -24,9 +24,9 @@ const UserStatsModal = ({ user, isDiscord, onClose }) => {
   const fetchStats = useCallback(async () => {
     try {
       setLoading(true);
-      const url = `${API_BASE_URL}/api/user/${user.id}/stats`;
+      const url = `${API_BASE_URL}/api/user/${user?.id}/stats`;
       const response = isDiscord
-        ? await fetch(`/api/user/${user.id}/stats`)
+        ? await fetch(`/api/user/${user?.id}/stats`)
         : await fetch(url);
 
       if (!response.ok) {
@@ -53,9 +53,9 @@ const UserStatsModal = ({ user, isDiscord, onClose }) => {
   const fetchGameGuesses = useCallback(
     async (date) => {
       try {
-        const url = `${API_BASE_URL}/api/user/${user.id}/guesses/${date}`;
+        const url = `${API_BASE_URL}/api/user/${user?.id}/guesses/${date}`;
         const response = isDiscord
-          ? await fetch(`/api/user/${user.id}/guesses/${date}`)
+          ? await fetch(`/api/user/${user?.id}/guesses/${date}`)
           : await fetch(url);
 
         if (!response.ok) {
@@ -83,7 +83,7 @@ const UserStatsModal = ({ user, isDiscord, onClose }) => {
 
   const getAvatarUrl = () => {
     if (user?.avatar) {
-      return `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png`;
+      return `https://cdn.discordapp.com/avatars/${user?.id}/${user.avatar}.png`;
     }
     return null;
   };
