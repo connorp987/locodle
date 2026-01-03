@@ -5,6 +5,7 @@ import {
   Popup,
   Polyline,
   useMapEvents,
+  ScaleControl,
 } from "react-leaflet";
 import { Icon } from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -104,6 +105,12 @@ const GameMap = ({
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>'
           url={tileUrl}
+        />
+        <ScaleControl
+          position="bottomright"
+          metric={true}
+          imperial={true}
+          maxWidth={200}
         />
 
         {/* Handle map clicks and show temp marker */}

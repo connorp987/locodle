@@ -20,3 +20,7 @@ code {
   height: 100%;
   width: 100%;
 }
+
+.leaflet-control-scale {
+  margin-right: 32px !important;
+}
