@@ -435,8 +435,37 @@ async function postDailySummaryToAllChannels() {
           [yesterdayStr, channelRow.guild_id]
         );
 
+        // Calculate server streak
+        const streakResult = await pool.query(
+          `WITH daily_completion AS (
+            SELECT date, 
+                   BOOL_OR(won) as server_won
+            FROM daily_results
+            WHERE guild_id = $1 AND date <= $2
+            GROUP BY date
+            ORDER BY date DESC
+          ),
+          streaks AS (
+            SELECT date, server_won,
+                   date - (ROW_NUMBER() OVER (ORDER BY date DESC))::int AS grp
+            FROM daily_completion
+            WHERE server_won = true
+          )
+          SELECT COUNT(*) as streak
+          FROM streaks
+          WHERE grp = (SELECT grp FROM streaks ORDER BY date DESC LIMIT 1)`,
+          [channelRow.guild_id, yesterdayStr]
+        );
+        const serverStreak = parseInt(streakResult.rows[0]?.streak || 0);
+
         let summaryMsg = `📊 **Yesterday's Results (${yesterdayStr})**\n`;
-        summaryMsg += `📍 Location: **${locationName}**\n\n`;
+        summaryMsg += `📍 Location: **${locationName}**\n`;
+
+        if (serverStreak > 0) {
+          const fireEmoji = serverStreak >= 5 ? "🔥" : "✨";
+          summaryMsg += `🔥 **Server Streak: ${serverStreak} days** ${fireEmoji}\n`;
+        }
+        summaryMsg += `\n`;
 
         if (result.rows.length === 0) {
           summaryMsg += `No one from this server played yesterday! 😢`;
