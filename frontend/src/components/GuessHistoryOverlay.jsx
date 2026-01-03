@@ -97,18 +97,18 @@ const GuessHistoryOverlay = ({
   }
 
   return (
-    <div className="absolute top-4 right-4 w-[calc(100%-5rem)] md:w-80 z-[400] flex flex-col gap-2">
+    <div className="absolute top-2 right-2 xs:top-4 xs:right-4 w-56 xs:w-64 sm:w-80 z-[400] flex flex-col gap-2">
       {/* Minimize Button */}
       <button
         onClick={() => onToggleExpand(false)}
-        className="absolute -top-3 -right-1 z-50 bg-white shadow-md border border-gray-100 p-1.5 rounded-full text-gray-600 hover:bg-gray-50"
+        className="absolute -top-2 -right-1 z-50 bg-white shadow-md border border-gray-100 p-1 rounded-full text-gray-600 hover:bg-gray-50 sm:p-1.5 sm:-top-3"
       >
-        <ChevronUp className="w-4 h-4" />
+        <ChevronUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
       </button>
 
       <div
         ref={scrollRef}
-        className="flex flex-col gap-2 overflow-y-auto max-h-[168px] md:max-h-[256px] pr-1"
+        className="flex flex-col gap-2 overflow-y-auto max-h-[40vh] xs:max-h-[50vh] md:max-h-[60vh] pr-1"
       >
         {[...guesses].reverse().map((guess, index) => {
           const temperature = getTemperatureLabel(guess.distance);
@@ -118,15 +118,15 @@ const GuessHistoryOverlay = ({
           return (
             <div
               key={index}
-              className="border border-gray-200/50 rounded-lg p-3 shadow-sm bg-white/90 backdrop-blur-sm hover:bg-white transition-colors shrink-0"
+              className="border border-gray-200/50 rounded-lg p-2 sm:p-3 shadow-sm bg-white/90 backdrop-blur-sm hover:bg-white transition-colors shrink-0"
             >
-              <div className="flex items-start justify-between mb-1">
-                <div className="flex items-center gap-2 flex-1 min-w-0">
-                  <span className="flex items-center justify-center w-5 h-5 rounded-full bg-primary-600 text-white text-xs font-bold flex-shrink-0">
+              <div className="flex items-start justify-between mb-0.5 sm:mb-1">
+                <div className="flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0">
+                  <span className="flex items-center justify-center w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-primary-600 text-white text-[10px] sm:text-xs font-bold flex-shrink-0">
                     {actualIndex}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <p className="font-medium text-gray-900 text-xs truncate">
+                    <p className="font-medium text-gray-900 text-[10px] sm:text-xs truncate">
                       {formatLocationName(guess)}
                     </p>
                     {guess.score !== undefined && (

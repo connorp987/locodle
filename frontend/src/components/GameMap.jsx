@@ -203,26 +203,28 @@ const GameMap = ({
 
       {/* Floating Confirm Button */}
       {tempMarker && onConfirm && (
-        <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 z-[1000]">
+        <div className="confirm-button-container absolute left-1/2 transform -translate-x-1/2 z-[1000]">
           <button
             onClick={() => onConfirm(tempMarker)}
             disabled={isSubmitting}
             className={`
-              font-bold py-3 px-8 rounded-full shadow-xl transform transition-all flex items-center gap-2 text-lg border-2 border-white
+              font-bold rounded-full shadow-xl transform transition-all flex items-center gap-2 border-2 border-white backdrop-blur-sm
               ${
                 isSubmitting
-                  ? "bg-gray-500 cursor-not-allowed opacity-80 scale-100"
-                  : "bg-green-600 hover:bg-green-700 hover:scale-105 text-white"
+                  ? "bg-gray-500/90 cursor-not-allowed opacity-80"
+                  : "bg-green-600/90 hover:bg-green-700 hover:scale-105 text-white"
               }
             `}
           >
             {isSubmitting ? (
               <>
-                <span className="animate-spin">⏳</span> Confirming...
+                <span className="animate-spin text-sm sm:text-base">⏳</span>
+                <span>Confirming...</span>
               </>
             ) : (
               <>
-                <span>📍</span> Confirm Location
+                <span className="text-sm sm:text-base">📍</span>
+                <span>Confirm Location</span>
               </>
             )}
           </button>

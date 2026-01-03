@@ -387,15 +387,15 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex flex-col h-[100dvh] overflow-hidden">
       {/* Header */}
-      <header className="bg-white shadow-md">
-        <div className="max-w-7xl mx-auto px-4 py-3 md:py-4">
+      <header className="bg-white shadow-md flex-shrink-0">
+        <div className="max-w-7xl mx-auto px-4 py-0.5 sm:py-1">
           {/* Top row: Logo + User */}
-          <div className="flex items-center justify-between mb-2 md:mb-0">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 md:gap-3">
-              <MapPin className="w-6 h-6 md:w-8 md:h-8 text-primary-600" />
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900">
+              <MapPin className="w-4 h-4 sm:w-6 sm:h-6 md:w-8 md:h-8 text-primary-600" />
+              <h1 className="text-lg sm:text-2xl md:text-3xl font-bold text-gray-900">
                 Locodle
               </h1>
             </div>
@@ -430,6 +430,7 @@ function App() {
           <div className="flex items-center gap-2 md:gap-3 flex-wrap justify-center md:justify-between">
             {/* Game controls */}
             <div className="flex items-center gap-2 flex-wrap justify-center">
+              {/* Date Picker */}
               <div className="relative" ref={datePickerRef}>
                 <button
                   onClick={() => setShowDatePicker(!showDatePicker)}
@@ -556,81 +557,80 @@ function App() {
         </div>
       </header>
 
-      <main className="w-full pb-8">
-        {/* Map Section - Full Width */}
-        <div ref={mapRef} className="w-full shadow-lg relative z-0">
-          <div className="h-[600px]">
-            <GameMap
-              guesses={guesses}
-              answer={answer}
-              onMapClick={!gameCompleted ? handleMapClick : null}
-              onConfirm={!gameCompleted ? handleConfirmLocation : null}
-              isSubmitting={submitting}
-              tempMarker={tempMarker}
-              useKm={useKm}
-              isDiscord={isDiscord}
-              gameMode={gameMode}
-              isHistoryExpanded={historyExpanded}
-              onHistoryToggle={setHistoryExpanded}
-            />
-          </div>
+      <main className="flex-1 flex flex-col overflow-hidden relative">
+        {/* Map Section - Grows to fill available space */}
+        <div
+          ref={mapRef}
+          className="flex-1 w-full shadow-lg relative z-0 min-h-[200px]"
+        >
+          <GameMap
+            guesses={guesses}
+            answer={answer}
+            onMapClick={!gameCompleted ? handleMapClick : null}
+            onConfirm={!gameCompleted ? handleConfirmLocation : null}
+            isSubmitting={submitting}
+            tempMarker={tempMarker}
+            useKm={useKm}
+            isDiscord={isDiscord}
+            gameMode={gameMode}
+            isHistoryExpanded={historyExpanded}
+            onHistoryToggle={setHistoryExpanded}
+          />
         </div>
 
-        {/* Bottom Section - Input and Stats */}
-        <div className="max-w-7xl mx-auto px-4 mt-8 space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Left Column - Input and Game Over */}
-            <div className="space-y-6">
-              {/* Guess Input */}
-              {!gameCompleted && (
-                <GuessInput
-                  onGuess={handleGuess}
-                  onConfirm={handleConfirmLocation}
-                  disabled={gameCompleted}
-                  guessCount={guesses.length}
-                  maxGuesses={-1} // Unlimited
-                  tempMarker={tempMarker}
-                  onClearMarker={() => setTempMarker(null)}
+        {/* Bottom Section - Scrollable if content overflows */}
+        <div className="bg-blue-50/50 overflow-y-auto max-h-[15vh] border-t border-blue-100">
+          <div className="max-w-7xl mx-auto px-4 py-1 space-y-1">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
+              {/* Left Column - Input and Game Over */}
+              <div>
+                {!gameCompleted && (
+                  <GuessInput
+                    onGuess={handleGuess}
+                    onConfirm={handleConfirmLocation}
+                    disabled={gameCompleted}
+                    guessCount={guesses.length}
+                    maxGuesses={-1}
+                    tempMarker={tempMarker}
+                    onClearMarker={() => setTempMarker(null)}
+                  />
+                )}
+                {gameCompleted && (
+                  <button
+                    onClick={() => setShowGameOverModal(true)}
+                    className="w-full bg-white hover:bg-gray-50 text-gray-900 font-bold py-3 px-6 rounded-2xl flex items-center justify-center gap-3 transition-all shadow-lg border-2 border-primary-600"
+                  >
+                    <Trophy className="w-5 h-5 text-yellow-500" /> View Results
+                    & Share
+                  </button>
+                )}
+              </div>
+
+              {/* Right Column - Stats and Hints */}
+              <div className="space-y-4">
+                {showHints && challenge?.hints && (
+                  <HintsPanel hints={challenge.hints} />
+                )}
+                <GameStats
+                  guesses={guesses}
+                  maxGuesses={-1}
+                  completed={gameCompleted}
+                  won={gameWon}
+                  useKm={useKm}
                 />
-              )}
-              {/* Game Over - Re-open Modal Button */}
-              {gameCompleted && (
-                <button
-                  onClick={() => setShowGameOverModal(true)}
-                  className="w-full bg-white hover:bg-gray-50 text-gray-900 font-bold py-4 px-6 rounded-2xl flex items-center justify-center gap-3 transition-all shadow-lg border-2 border-primary-600 transform hover:scale-[1.02] active:scale-[0.98]"
-                >
-                  <Trophy className="w-6 h-6 text-yellow-500" />
-                  View Results & Share
-                </button>
-              )}
-            </div>
-
-            {/* Right Column - Stats and Hints */}
-            <div className="space-y-6">
-              {showHints && challenge?.hints && (
-                <HintsPanel hints={challenge.hints} />
-              )}
-
-              <GameStats
-                guesses={guesses}
-                maxGuesses={-1}
-                completed={gameCompleted}
-                won={gameWon}
-                useKm={useKm}
-              />
+              </div>
             </div>
           </div>
+
+          <footer className="bg-white py-1 border-t">
+            <div className="max-w-7xl mx-auto px-4 text-center text-gray-600 text-xs sm:text-sm">
+              <p>© 2024 Locodle. A daily geo-location guessing game.</p>
+            </div>
+          </footer>
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="bg-white mt-12 py-6 border-t">
-        <div className="max-w-7xl mx-auto px-4 text-center text-gray-600">
-          <p>© 2024 Locodle. A daily geo-location guessing game.</p>
-        </div>
-      </footer>
-
-      {/* Result Modal */}
+      {/* Modals */}
       {showResultModal && !gameCompleted && guesses.length > 0 && (
         <GuessResultModal
           guess={guesses[guesses.length - 1]}

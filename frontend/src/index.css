@@ -24,3 +24,63 @@ code {
 .leaflet-control-scale {
   margin-right: 32px !important;
 }
+
+/* Confirm Button and Map Control Scaling - Aggressive fluid scaling */
+.confirm-button-container {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  /* Use a fixed small bottom offset to keep it at the very bottom of the map area */
+  bottom: 12px !important;
+  transition: all 0.2s ease-out;
+}
+
+.confirm-button-container button {
+  white-space: nowrap;
+  /* Aggressive fluid sizing for the button */
+  padding: clamp(4px, 1vh, 12px) clamp(12px, 3vw, 32px) !important;
+  font-size: clamp(10px, 1.8vh, 18px) !important;
+  transform-origin: bottom center;
+}
+
+/* Fluid scaling for map controls */
+.leaflet-control-zoom,
+.leaflet-control-scale {
+  transition: all 0.2s ease-out;
+  /* Scale down more aggressively as height decreases */
+  transform: scale(clamp(0.4, 100vh / 1200, 1)) !important;
+}
+
+.leaflet-control-zoom {
+  transform-origin: top left !important;
+}
+
+.leaflet-control-scale {
+  transform-origin: bottom right !important;
+}
+
+/* Hide scale on extremely short screens to save space */
+@media (max-height: 450px) {
+  .leaflet-control-scale {
+    display: none !important;
+  }
+  .confirm-button-container {
+    bottom: 5px !important;
+  }
+}
+
+/* Header adjustments for short screens */
+@media (max-height: 500px) {
+  header {
+    padding-top: 2px !important;
+    padding-bottom: 2px !important;
+  }
+  header h1 {
+    font-size: 1.25rem !important;
+  }
+  header .MapPin {
+    width: 1rem !important;
+    height: 1rem !important;
+  }
+}
