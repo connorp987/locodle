@@ -330,114 +330,12 @@ function App() {
 
   const handleShareAndExit = async () => {
     console.log("handleShareAndExit called");
-    // If we're in Discord, we want to try sharing and closing
     if (isDiscord) {
-      console.log("In Discord environment, starting share process");
-
-      // Close modal immediately so the UI feels responsive
+      console.log("In Discord environment, closing activity");
       setShowGameOverModal(false);
-
-      let currentAnswer = answer;
-
-      // If answer is missing (common when reloading a completed game), try to fetch it
-      if (!currentAnswer && gameCompleted) {
-        console.log(
-          "Answer missing but game completed, attempting to fetch..."
-        );
-        try {
-          const response = await customFetch(
-            `${API_BASE_URL}/api/daily-challenge?date=${currentDate}`
-          );
-          if (response.ok) {
-            const data = await response.json();
-            // Note: The backend might only return answer if it's completed on server-side
-            // or we might need a different endpoint. For now, let's see if we can find it
-            // in the last guess or if we need to adjust the backend.
-            if (data.answer) {
-              currentAnswer = data.answer;
-              setAnswer(currentAnswer);
-            } else {
-              // Fallback: If we have guesses, the last guess might have the answer if it was a win
-              const lastGuess = guesses[guesses.length - 1];
-              if (gameWon && lastGuess) {
-                currentAnswer = { name: lastGuess.guess };
-              }
-            }
-          }
-        } catch (e) {
-          console.error("Failed to fetch answer for share:", e);
-        }
-      }
-
-      // Basic validation
-      if (!user || !gameCompleted || !currentAnswer) {
-        console.error("Missing required state for share:", {
-          user: !!user,
-          gameCompleted,
-          answer: !!currentAnswer,
-        });
-        await closeActivity();
-        return;
-      }
-
-      const status = gameWon ? "✅" : "❌";
-      const lastGuess = guesses[guesses.length - 1];
-
-      // Safety check for lastGuess
-      if (!lastGuess) {
-        console.error("No guesses found to share");
-        await closeActivity();
-        return;
-      }
-
-      const finalDistance = lastGuess.distance;
-      const formattedDistance = useKm
-        ? `${finalDistance.toLocaleString()}km`
-        : `${Math.round(finalDistance * 0.621371).toLocaleString()}mi`;
-
-      const guessGrid = guesses
-        .map((g) => {
-          const distPercent = Math.min(100, (g.distance / 10000) * 100);
-          const emoji =
-            g.distance < 50
-              ? "🎯"
-              : distPercent < 20
-              ? "🟢"
-              : distPercent < 40
-              ? "🟡"
-              : distPercent < 60
-              ? "🟠"
-              : distPercent < 80
-              ? "🔴"
-              : "⚫";
-          return emoji;
-        })
-        .join("");
-
-      const resultMessage =
-        `🌍 **Locodle ${currentDate}**\n\n` +
-        `<@${user?.id}> ${status}\n` +
-        `${guesses.length} guess${
-          guesses.length > 1 ? "es" : ""
-        } • ${formattedDistance}\n\n` +
-        `${guessGrid}`;
-
-      console.log("Attempting to post message to channel:", resultMessage);
-
-      // Attempt to post the message
-      try {
-        await postChannelMessage(resultMessage);
-        // Always try to close the activity
-        // console.log("Closing activity...");
-        await closeActivity();
-      } catch (err) {
-        // console.error("Error during share and exit:", err);
-        // Fallback: just close the activity
-        await closeActivity();
-      }
+      await closeActivity();
     } else {
       console.log("Not in Discord, closing modal only");
-      // If not in Discord, just close the modal
       setShowGameOverModal(false);
     }
   };
