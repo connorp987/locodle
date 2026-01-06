@@ -445,15 +445,28 @@ async function postDailySummaryToAllChannels() {
             GROUP BY date
             ORDER BY date DESC
           ),
-          streaks AS (
-            SELECT date, server_won,
-                   date - (ROW_NUMBER() OVER (ORDER BY date DESC))::int AS grp
+          consecutive_days AS (
+            SELECT 
+              date,
+              server_won,
+              LAG(date) OVER (ORDER BY date DESC) as prev_date,
+              CASE 
+                WHEN LAG(date) OVER (ORDER BY date DESC) = date + INTERVAL '1 day' THEN 1
+                ELSE 0
+              END as is_consecutive
             FROM daily_completion
             WHERE server_won = true
+          ),
+          streak_groups AS (
+            SELECT 
+              date,
+              SUM(CASE WHEN is_consecutive = 0 THEN 1 ELSE 0 END) 
+                OVER (ORDER BY date DESC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) as streak_group
+            FROM consecutive_days
           )
           SELECT COUNT(*) as streak
-          FROM streaks
-          WHERE grp = (SELECT grp FROM streaks ORDER BY date DESC LIMIT 1)`,
+          FROM streak_groups
+          WHERE streak_group = 0`,
           [channelRow.guild_id, yesterdayStr]
         );
         const serverStreak = parseInt(streakResult.rows[0]?.streak || 0);
