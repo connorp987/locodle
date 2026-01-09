@@ -135,6 +135,11 @@ function App() {
     });
   }, [currentDate, loadDailyChallenge]);
 
+  // Persist useKm preference to localStorage
+  useEffect(() => {
+    localStorage.setItem("locodle-use-km", JSON.stringify(useKm));
+  }, [useKm]);
+
   // Sync guesses from server when user becomes available (cross-device sync)
   useEffect(() => {
     if (!user?.id) return;

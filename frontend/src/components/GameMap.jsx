@@ -107,10 +107,11 @@ const GameMap = ({
           url={tileUrl}
         />
         <ScaleControl
-          position="bottomright"
-          metric={true}
-          imperial={true}
-          maxWidth={200}
+          key={`scale-${useKm}`}
+          position="topleft"
+          metric={useKm}
+          imperial={!useKm}
+          maxWidth={250}
         />
 
         {/* Handle map clicks and show temp marker */}
