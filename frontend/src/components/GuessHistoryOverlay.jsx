@@ -108,7 +108,7 @@ const GuessHistoryOverlay = ({
 
       <div
         ref={scrollRef}
-        className="flex flex-col gap-2 overflow-y-auto max-h-[40vh] xs:max-h-[50vh] md:max-h-[60vh] pr-1"
+        className="flex flex-col gap-2 overflow-y-auto max-h-[220px] xs:max-h-[220px] sm:max-h-[220px] pr-1"
       >
         {[...guesses].reverse().map((guess, index) => {
           const temperature = getTemperatureLabel(guess.distance);
