@@ -382,6 +382,79 @@ function getETDateString(date = new Date()) {
   }).format(date);
 }
 
+// Get current server streak for a guild
+async function getServerStreak(guildId) {
+  try {
+    const result = await pool.query(
+      `SELECT current_streak, last_completion_date FROM server_streaks WHERE guild_id = $1`,
+      [guildId]
+    );
+
+    if (result.rows.length === 0) {
+      return { currentStreak: 0, lastCompletionDate: null };
+    }
+
+    return {
+      currentStreak: result.rows[0].current_streak || 0,
+      lastCompletionDate: result.rows[0].last_completion_date,
+    };
+  } catch (error) {
+    console.error("Failed to get server streak:", error);
+    return { currentStreak: 0, lastCompletionDate: null };
+  }
+}
+
+// Update server streak when someone completes the daily challenge
+async function updateServerStreak(guildId, completionDate) {
+  try {
+    const streak = await getServerStreak(guildId);
+    const lastDate = streak.lastCompletionDate;
+
+    // If this is the same date as last completion, don't update
+    if (lastDate && lastDate === completionDate) {
+      return streak.currentStreak;
+    }
+
+    let newStreak = 1;
+
+    if (lastDate) {
+      // Parse dates and check if they're consecutive
+      const last = new Date(lastDate);
+      const current = new Date(completionDate);
+      const diffTime = current - last;
+      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+      if (diffDays === 1) {
+        // Consecutive day - increment streak
+        newStreak = streak.currentStreak + 1;
+      } else if (diffDays > 1) {
+        // Streak broken - reset to 1
+        newStreak = 1;
+      } else {
+        // Same day or past date - keep current streak
+        newStreak = streak.currentStreak;
+      }
+    }
+
+    // Update or insert the streak
+    await pool.query(
+      `INSERT INTO server_streaks (guild_id, current_streak, last_completion_date, updated_at)
+       VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+       ON CONFLICT (guild_id) 
+       DO UPDATE SET current_streak = $2, last_completion_date = $3, updated_at = CURRENT_TIMESTAMP`,
+      [guildId, newStreak, completionDate]
+    );
+
+    console.log(
+      `✅ Updated server streak for guild ${guildId}: ${newStreak} days`
+    );
+    return newStreak;
+  } catch (error) {
+    console.error("Failed to update server streak:", error);
+    return 0;
+  }
+}
+
 // Post daily summary to all registered channels
 async function postDailySummaryToAllChannels() {
   if (!client || !client.isReady()) {
@@ -435,41 +508,9 @@ async function postDailySummaryToAllChannels() {
           [yesterdayStr, channelRow.guild_id]
         );
 
-        // Calculate server streak
-        const streakResult = await pool.query(
-          `WITH daily_completion AS (
-            SELECT date, 
-                   BOOL_OR(won) as server_won
-            FROM daily_results
-            WHERE guild_id = $1 AND date <= $2
-            GROUP BY date
-            ORDER BY date DESC
-          ),
-          consecutive_days AS (
-            SELECT 
-              date,
-              server_won,
-              LAG(date) OVER (ORDER BY date DESC) as prev_date,
-              CASE 
-                WHEN LAG(date) OVER (ORDER BY date DESC) = date + INTERVAL '1 day' THEN 1
-                ELSE 0
-              END as is_consecutive
-            FROM daily_completion
-            WHERE server_won = true
-          ),
-          streak_groups AS (
-            SELECT 
-              date,
-              SUM(CASE WHEN is_consecutive = 0 THEN 1 ELSE 0 END) 
-                OVER (ORDER BY date DESC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) as streak_group
-            FROM consecutive_days
-          )
-          SELECT COUNT(*) as streak
-          FROM streak_groups
-          WHERE streak_group = 0`,
-          [channelRow.guild_id, yesterdayStr]
-        );
-        const serverStreak = parseInt(streakResult.rows[0]?.streak || 0);
+        // Get server streak from the simple streak table
+        const streakData = await getServerStreak(channelRow.guild_id);
+        const serverStreak = streakData.currentStreak;
 
         let summaryMsg = `📊 **Yesterday's Results (${yesterdayStr})**\n`;
         summaryMsg += `📍 Location: **${locationName}**\n`;
@@ -563,6 +604,9 @@ export async function postOrUpdateCompletionMessage(
       return;
     }
 
+    // Update server streak (increments if this is the first completion today)
+    const currentStreak = await updateServerStreak(guildId, date);
+
     // Get all completions for this guild/date
     const completionsResult = await pool.query(
       `SELECT u.id as user_id, u.username, r.guesses_count, r.won
@@ -578,7 +622,14 @@ export async function postOrUpdateCompletionMessage(
     }
 
     // Build the message content
-    let messageContent = `🌍 **Today's Locodle Results** (${date})\n\n`;
+    let messageContent = `🌍 **Today's Locodle Results** (${date})\n`;
+
+    // Add streak if it exists
+    if (currentStreak > 0) {
+      messageContent += `🔥 **Server Streak: ${currentStreak} days** 🔥\n`;
+    }
+
+    messageContent += `\n`;
 
     completionsResult.rows.forEach((row, index) => {
       const emoji = row.won ? "✅" : "❌";
