@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { MapPin, Trophy, Info, Calendar, LogOut } from "lucide-react";
 import GameMap from "./components/GameMap";
-import GuessInput from "./components/GuessInput";
-import GameStats from "./components/GameStats";
+import GuessInputOverlay from "./components/GuessInputOverlay";
 import HintsPanel from "./components/HintsPanel";
 import GuessResultModal from "./components/GuessResultModal";
 import GameOverModal from "./components/GameOverModal";
@@ -23,7 +22,7 @@ function App() {
   const submittingRef = useState(false); // Keep state for UI updates
   const isSubmitting = useRef(false); // Use ref for logic checks
   const [submitting, setSubmitting] = submittingRef; // Alias for compatibility
-  const [showHints, setShowHints] = useState(false);
+  const [showHintsModal, setShowHintsModal] = useState(false);
   const [tempMarker, setTempMarker] = useState(null);
   const [useKm, setUseKm] = useState(() => {
     const stored = localStorage.getItem("locodle-use-km");
@@ -53,7 +52,6 @@ function App() {
     user,
     logout,
     setActivityStatus,
-    postChannelMessage,
     closeActivity,
   } = useDiscord();
 
@@ -500,14 +498,11 @@ function App() {
               </button>
 
               <button
-                onClick={() => setShowHints(!showHints)}
+                onClick={() => setShowHintsModal(true)}
                 className="flex items-center gap-1.5 px-3 py-1.5 md:px-4 md:py-2 bg-primary-100 text-primary-700 rounded-lg hover:bg-primary-200 transition-colors text-sm md:text-base"
               >
                 <Info className="w-4 h-4 md:w-5 md:h-5" />
-                <span className="hidden sm:inline">
-                  {showHints ? "Hide" : "Show"}
-                </span>{" "}
-                Hints
+                <span className="hidden sm:inline">View</span> Hints
               </button>
 
               {user && (
@@ -578,56 +573,30 @@ function App() {
           />
         </div>
 
-        {/* Bottom Section - Scrollable if content overflows */}
-        <div className="bg-blue-50/50 overflow-y-auto max-h-[15vh] border-t border-blue-100">
-          <div className="max-w-7xl mx-auto px-4 py-1 space-y-1">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
-              {/* Left Column - Input and Game Over */}
-              <div>
-                {!gameCompleted && (
-                  <GuessInput
-                    onGuess={handleGuess}
-                    onConfirm={handleConfirmLocation}
-                    disabled={gameCompleted}
-                    guessCount={guesses.length}
-                    maxGuesses={-1}
-                    tempMarker={tempMarker}
-                    onClearMarker={() => setTempMarker(null)}
-                  />
-                )}
-                {gameCompleted && (
-                  <button
-                    onClick={() => setShowGameOverModal(true)}
-                    className="w-full bg-white hover:bg-gray-50 text-gray-900 font-bold py-3 px-6 rounded-2xl flex items-center justify-center gap-3 transition-all shadow-lg border-2 border-primary-600"
-                  >
-                    <Trophy className="w-5 h-5 text-yellow-500" /> View Results
-                    & Share
-                  </button>
-                )}
-              </div>
+        {/* GuessInput Overlay - Bottom of map */}
+        <GuessInputOverlay
+          gameCompleted={gameCompleted}
+          onGuess={handleGuess}
+          onConfirm={handleConfirmLocation}
+          guessCount={guesses.length}
+          tempMarker={tempMarker}
+          onClearMarker={() => setTempMarker(null)}
+          isSubmitting={submitting}
+        />
 
-              {/* Right Column - Stats and Hints */}
-              <div className="space-y-4">
-                {showHints && challenge?.hints && (
-                  <HintsPanel hints={challenge.hints} />
-                )}
-                <GameStats
-                  guesses={guesses}
-                  maxGuesses={-1}
-                  completed={gameCompleted}
-                  won={gameWon}
-                  useKm={useKm}
-                />
-              </div>
-            </div>
+        {/* Floating Action Buttons */}
+        {gameCompleted && (
+          <div className="absolute bottom-4 right-4 z-[1000]">
+            <button
+              onClick={() => setShowGameOverModal(true)}
+              className="bg-white hover:bg-gray-50 text-gray-900 font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg border-2 border-primary-600"
+              title="View Results & Share"
+            >
+              <Trophy className="w-5 h-5 text-yellow-500" />
+              <span className="hidden sm:inline">Results</span>
+            </button>
           </div>
-
-          <footer className="bg-white py-1 border-t">
-            <div className="max-w-7xl mx-auto px-4 text-center text-gray-600 text-xs sm:text-sm">
-              <p>© 2024 Locodle. A daily geo-location guessing game.</p>
-            </div>
-          </footer>
-        </div>
+        )}
       </main>
 
       {/* Modals */}
@@ -653,6 +622,29 @@ function App() {
           isDiscord={isDiscord}
           onClose={() => setShowStatsModal(false)}
         />
+      )}
+
+      {/* Hints Modal */}
+      {showHintsModal && challenge?.hints && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[2000] p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between rounded-t-2xl">
+              <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                <Info className="w-6 h-6 text-primary-600" />
+                Hints
+              </h2>
+              <button
+                onClick={() => setShowHintsModal(false)}
+                className="text-gray-400 hover:text-gray-600 text-2xl font-bold w-8 h-8 flex items-center justify-center"
+              >
+                ×
+              </button>
+            </div>
+            <div className="p-6">
+              <HintsPanel hints={challenge.hints} />
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Game Over Modal */}

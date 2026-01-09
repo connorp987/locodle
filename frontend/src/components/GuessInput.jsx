@@ -7,20 +7,20 @@ const GuessInput = ({
   disabled,
   tempMarker,
   onClearMarker,
+  isSubmitting,
 }) => {
   const [input, setInput] = useState("");
   const [suggestions, setSuggestions] = useState([]);
-  const [loading, setLoading] = useState(false);
   const debounceTimer = useRef(null);
+  const inputRef = useRef(null);
+  const wasTypingRef = useRef(false);
 
   const searchLocations = async (query) => {
     if (query.length < 2) {
       setSuggestions([]);
-      setLoading(false);
       return;
     }
 
-    setLoading(true);
     try {
       // Using Nominatim API for geocoding
       const response = await fetch(
@@ -33,8 +33,6 @@ const GuessInput = ({
     } catch (error) {
       console.error("Failed to search locations:", error);
       setSuggestions([]);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -48,10 +46,7 @@ const GuessInput = ({
     }
 
     // Set loading state immediately if there's text
-    if (value.length >= 2) {
-      setLoading(true);
-    } else {
-      setLoading(false);
+    if (value.length <= 2) {
       setSuggestions([]);
     }
 
@@ -71,6 +66,7 @@ const GuessInput = ({
   }, []);
 
   const handleSelectLocation = (location) => {
+    wasTypingRef.current = true; // Mark that this was from typing/search
     onGuess({
       name: location.display_name,
       lat: parseFloat(location.lat),
@@ -80,96 +76,102 @@ const GuessInput = ({
     setSuggestions([]);
   };
 
+  // Focus and select input after submission completes (only if user was typing)
+  useEffect(() => {
+    if (
+      !isSubmitting &&
+      inputRef.current &&
+      input === "" &&
+      wasTypingRef.current
+    ) {
+      // Wait a bit for the submission to fully complete
+      const timer = setTimeout(() => {
+        inputRef.current?.focus();
+        inputRef.current?.select();
+        wasTypingRef.current = false; // Reset the flag
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isSubmitting, input]);
+
   const handleConfirmMapGuess = () => {
     if (!tempMarker || !onConfirm) return;
+    wasTypingRef.current = false; // Mark that this was NOT from typing
     onConfirm(tempMarker);
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-lg p-6">
-      <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Enter your guess
-        </label>
-
-        <div className="relative">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Search className="h-5 w-5 text-gray-400" />
-          </div>
-
-          <input
-            type="text"
-            value={input}
-            onChange={handleInputChange}
-            disabled={disabled}
-            placeholder="Search for a city, landmark, or country..."
-            className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
-          />
+    <div className="bg-white rounded-lg shadow-lg p-2 max-w-md mx-auto">
+      <div className="relative">
+        <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
+          <Search className="h-4 w-4 text-gray-400" />
         </div>
 
-        {/* Suggestions dropdown */}
-        {suggestions.length > 0 && (
-          <div className="mt-2 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-            {suggestions.map((location, index) => (
-              <button
-                key={index}
-                onClick={() => handleSelectLocation(location)}
-                className="w-full text-left px-4 py-3 hover:bg-primary-50 flex items-start gap-3 border-b border-gray-100 last:border-b-0 transition-colors"
-              >
-                <MapPin className="w-5 h-5 text-primary-600 flex-shrink-0 mt-0.5" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">
-                    {location.display_name}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {location.type} • {location.lat.substring(0, 8)},{" "}
-                    {location.lon.substring(0, 8)}
-                  </p>
-                </div>
-              </button>
-            ))}
-          </div>
-        )}
-
-        {loading && <p className="mt-2 text-sm text-gray-500">Searching...</p>}
+        <input
+          ref={inputRef}
+          type="text"
+          value={input}
+          onChange={handleInputChange}
+          disabled={disabled || isSubmitting}
+          placeholder="Search or click map..."
+          className="block w-full pl-8 pr-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+        />
       </div>
 
-      {/* Map-based guess confirmation */}
-      {tempMarker && (
-        <div className="mb-4 bg-green-50 border border-green-200 rounded-lg p-4">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <MapPin className="w-5 h-5 text-green-600" />
-              <p className="text-sm font-medium text-green-800">
-                Location selected on map
-              </p>
-            </div>
+      {/* Suggestions dropdown */}
+      {suggestions.length > 0 && (
+        <div className="mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
+          {suggestions.map((location, index) => (
             <button
-              onClick={onClearMarker}
-              className="text-xs text-gray-500 hover:text-gray-700"
+              key={index}
+              onClick={() => handleSelectLocation(location)}
+              className="w-full text-left px-2 py-1.5 hover:bg-primary-50 flex items-start gap-1.5 border-b border-gray-100 last:border-b-0 transition-colors"
             >
-              Clear
+              <MapPin className="w-3.5 h-3.5 text-primary-600 flex-shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium text-gray-900 truncate">
+                  {location.display_name}
+                </p>
+              </div>
             </button>
-          </div>
-          <p className="text-xs text-gray-600 mb-3">
-            Coordinates: {tempMarker.lat.toFixed(4)},{" "}
-            {tempMarker.lng.toFixed(4)}
-          </p>
-          <button
-            onClick={handleConfirmMapGuess}
-            className="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition-colors font-medium"
-          >
-            Confirm This Location
-          </button>
+          ))}
         </div>
       )}
 
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-        <p className="text-sm text-blue-800">
-          💡 <strong>Tip:</strong> Click anywhere on the map to place a pin, or
-          search for a location by name!
-        </p>
-      </div>
+      {/* Map-based guess confirmation */}
+      {tempMarker && (
+        <div className="mt-2 relative rounded-lg overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-400 rounded-lg animate-pulse"></div>
+          <div className="relative p-2 flex justify-between items-center">
+            <div className="flex items-center gap-1.5 text-green-800">
+              <MapPin className="w-3.5 h-3.5 animate-bounce" />
+              <p className="text-xs font-semibold">
+                {tempMarker.lat.toFixed(3)}, {tempMarker.lng.toFixed(3)}
+              </p>
+            </div>
+            <div className="flex gap-1.5">
+              <button
+                onClick={handleConfirmMapGuess}
+                disabled={isSubmitting}
+                className={`py-2 px-3 rounded-lg transition-all font-bold text-sm shadow-lg transform disabled:cursor-not-allowed disabled:transform-none ${
+                  isSubmitting
+                    ? "bg-gray-400 text-gray-100 cursor-wait"
+                    : "bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:from-green-700 hover:to-emerald-700 hover:shadow-xl hover:scale-105"
+                }`}
+              >
+                {isSubmitting ? "⏳ Submitting..." : "✓ Confirm"}
+              </button>
+              <button
+                onClick={onClearMarker}
+                disabled={isSubmitting}
+                className="px-2 text-xs text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded transition-colors disabled:opacity-50"
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
