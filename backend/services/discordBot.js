@@ -609,7 +609,7 @@ export async function postOrUpdateCompletionMessage(
 
     // Get all completions for this guild/date
     const completionsResult = await pool.query(
-      `SELECT u.id as user_id, u.username, r.guesses_count, r.won
+      `SELECT u.id as user_id, u.username, r.guesses_count, r.won, r.game_mode
        FROM daily_results r
        JOIN discord_users u ON r.user_id = u.id
        WHERE r.date = $1 AND r.guild_id = $2
@@ -635,9 +635,10 @@ export async function postOrUpdateCompletionMessage(
       const emoji = row.won ? "✅" : "❌";
       const medal =
         index === 0 ? "🥇 " : index === 1 ? "🥈 " : index === 2 ? "🥉 " : "";
+      const modeIndicator = row.game_mode === "easy" ? " (Easy)" : "";
       messageContent += `${medal}<@${row.user_id}> ${emoji} ${
         row.guesses_count
-      } guess${row.guesses_count !== 1 ? "es" : ""}\n`;
+      } guess${row.guesses_count !== 1 ? "es" : ""} ${modeIndicator}\n`;
     });
 
     // Check if we already have a message for this channel/date

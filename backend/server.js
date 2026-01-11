@@ -292,17 +292,21 @@ fastify.post("/api/guess", async (request, reply) => {
 
         if (won) {
           try {
+            // Get game mode from request (defaults to 'hard' if not provided)
+            const gameMode = request.body.gameMode || "hard";
+
             // Track win in DB
             await pool.query(
-              `INSERT INTO daily_results (user_id, guild_id, date, score, guesses_count, won)
-               VALUES ($1, $2, $3, $4, $5, true)
-               ON CONFLICT (user_id, date) DO UPDATE SET score = $4, guesses_count = $5, won = true, guild_id = $2`,
+              `INSERT INTO daily_results (user_id, guild_id, date, score, guesses_count, won, game_mode)
+               VALUES ($1, $2, $3, $4, $5, true, $6)
+               ON CONFLICT (user_id, date) DO UPDATE SET score = $4, guesses_count = $5, won = true, guild_id = $2, game_mode = $6`,
               [
                 discord_user_id,
                 guild_id,
                 gameDate,
                 Math.round(distance),
                 request.body.guessCount || 1,
+                gameMode,
               ]
             );
 
