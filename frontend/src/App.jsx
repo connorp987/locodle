@@ -7,8 +7,9 @@ import GuessResultModal from "./components/GuessResultModal";
 import GameOverModal from "./components/GameOverModal";
 import UserStatsModal from "./components/UserStatsModal";
 import { useDiscord } from "./contexts/DiscordContext";
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
+import { getEasternDateString } from "./utils/dateUtils";
+import { API_BASE_URL } from "./utils/apiUtils";
+import { getDiscordAvatarUrl } from "./utils/discordUtils";
 
 function App() {
   const [challenge, setChallenge] = useState(null);
@@ -33,12 +34,7 @@ function App() {
     return stored || "hard"; // Default to Hard mode
   });
   const [currentDate, setCurrentDate] = useState(() => {
-    return new Intl.DateTimeFormat("en-CA", {
-      timeZone: "America/New_York",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(new Date());
+    return getEasternDateString();
   });
   const [availableDates, setAvailableDates] = useState([]);
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -55,17 +51,12 @@ function App() {
     closeActivity,
   } = useDiscord();
 
-  // Helper for fetching data that works in both browser and Discord
   const customFetch = useCallback(
     async (url, options = {}) => {
       if (isDiscord) {
-        // In Discord, we must use relative URLs to satisfy CSP.
-        // Discord's proxy will route these based on the URL Mappings in the Developer Portal.
-        // We strip the API_BASE_URL to get the relative path (e.g. "/api/guess").
         const relativeUrl = url.replace(API_BASE_URL, "");
         return fetch(relativeUrl, options);
       } else {
-        // Standard Browser Fetch
         return fetch(url, options);
       }
     },
@@ -407,13 +398,7 @@ function App() {
             {user && (
               <div className="flex items-center gap-2 md:hidden">
                 <img
-                  src={
-                    user?.avatar
-                      ? `https://cdn.discordapp.com/avatars/${user?.id}/${user?.avatar}.png`
-                      : `https://cdn.discordapp.com/embed/avatars/${
-                          parseInt(user?.id || "0") % 5
-                        }.png`
-                  }
+                  src={getDiscordAvatarUrl(user)}
                   alt={user?.username}
                   className="w-8 h-8 rounded-full"
                 />
@@ -526,13 +511,7 @@ function App() {
             {user && (
               <div className="hidden md:flex items-center gap-2 pl-3 border-l border-gray-200">
                 <img
-                  src={
-                    user?.avatar
-                      ? `https://cdn.discordapp.com/avatars/${user?.id}/${user?.avatar}.png`
-                      : `https://cdn.discordapp.com/embed/avatars/${
-                          parseInt(user?.id || "0") % 5
-                        }.png`
-                  }
+                  src={getDiscordAvatarUrl(user)}
                   alt={user?.username}
                   className="w-8 h-8 rounded-full"
                 />

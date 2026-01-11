@@ -10,8 +10,9 @@ import {
   ChevronRight,
   User,
 } from "lucide-react";
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
+import { API_BASE_URL } from "../utils/apiUtils";
+import { formatDate } from "../utils/dateUtils";
+import { getDiscordAvatarUrl } from "../utils/discordUtils";
 
 const UserStatsModal = ({ user, isDiscord, onClose }) => {
   const [stats, setStats] = useState(null);
@@ -72,20 +73,8 @@ const UserStatsModal = ({ user, isDiscord, onClose }) => {
     [user, isDiscord]
   );
 
-  const formatDate = (dateStr) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
-  };
-
   const getAvatarUrl = () => {
-    if (user?.avatar) {
-      return `https://cdn.discordapp.com/avatars/${user?.id}/${user.avatar}.png`;
-    }
-    return null;
+    return getDiscordAvatarUrl(user);
   };
 
   if (!user) {

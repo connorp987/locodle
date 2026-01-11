@@ -1,12 +1,13 @@
 import { MapPin, TrendingDown } from "lucide-react";
+import { convertDistance, getDistanceUnit } from "../utils/distanceUtils";
+import {
+  getTemperatureLabel,
+  getDirectionArrow,
+  formatLocationName,
+} from "../utils/gameUtils";
 
 const GuessHistory = ({ guesses, useKm = true, gameMode = "hard" }) => {
-  const convertDistance = (km) => {
-    if (useKm) return km;
-    return Math.round(km * 0.621371); // Convert to miles
-  };
-
-  const distanceUnit = useKm ? "km" : "mi";
+  const distanceUnit = getDistanceUnit(useKm);
   if (guesses.length === 0) {
     return (
       <div className="bg-white rounded-xl shadow-lg p-6">
@@ -20,70 +21,6 @@ const GuessHistory = ({ guesses, useKm = true, gameMode = "hard" }) => {
       </div>
     );
   }
-
-  const getTemperatureLabel = (distance) => {
-    if (distance < 50)
-      return { text: "Perfect!", color: "text-green-600 bg-green-50" };
-    if (distance < 500)
-      return { text: "Fire", color: "text-red-600 bg-red-50" };
-    if (distance < 1500)
-      return { text: "Hot", color: "text-orange-600 bg-orange-50" };
-    if (distance < 3000)
-      return { text: "Warm", color: "text-yellow-600 bg-yellow-50" };
-    if (distance < 6000)
-      return { text: "Chilly", color: "text-blue-400 bg-blue-50" };
-    if (distance < 10000)
-      return { text: "Cold", color: "text-blue-600 bg-blue-100" };
-    return { text: "Freezing", color: "text-indigo-700 bg-indigo-100" };
-  };
-
-  const getDirectionArrow = (direction) => {
-    const arrows = {
-      N: "⬆️",
-      NE: "↗️",
-      E: "➡️",
-      SE: "↘️",
-      S: "⬇️",
-      SW: "↙️",
-      W: "⬅️",
-      NW: "↖️",
-    };
-    return arrows[direction] || "";
-  };
-
-  const formatLocationName = (guess) => {
-    // If we have structured address data from the backend, use it
-    if (guess.address) {
-      const { city, town, village, hamlet, suburb, state, country } =
-        guess.address;
-
-      // Try to find the most relevant "city-like" name
-      const mainName = city || town || village || hamlet || suburb;
-
-      if (mainName) {
-        // Append state or country for context if available, but keep it short
-        // e.g. "Paris, France" or "Springfield, IL"
-        const context = country || state;
-        return context ? `${mainName}, ${context}` : mainName;
-      }
-    }
-
-    // Fallback to parsing the display_name string if no address object
-    const fullAddress = guess.guess;
-    if (!fullAddress) return "";
-    const parts = fullAddress.split(",").map((p) => p.trim());
-    if (parts.length === 0) return fullAddress;
-
-    const firstPart = parts[0];
-    // Check if first part is likely a house number (digits, optionally followed by a letter, e.g. "73", "73a", "10-12")
-    const isHouseNumber = /^[\d\-\s]+[a-zA-Z]?$/.test(firstPart);
-
-    if (isHouseNumber && parts.length > 1) {
-      return `${firstPart} ${parts[1]}`;
-    }
-
-    return firstPart;
-  };
 
   return (
     <div className="bg-white rounded-xl shadow-lg p-6">
@@ -129,7 +66,7 @@ const GuessHistory = ({ guesses, useKm = true, gameMode = "hard" }) => {
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <TrendingDown className="w-4 h-4" />
                 <span>
-                  {convertDistance(guess.distance).toLocaleString()}{" "}
+                  {convertDistance(guess.distance, useKm).toLocaleString()}{" "}
                   {distanceUnit} away
                 </span>
                 {guesses.length >= 2 &&

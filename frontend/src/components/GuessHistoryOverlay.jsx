@@ -1,5 +1,11 @@
 import { useEffect, useRef } from "react";
 import { TrendingDown, ChevronUp, ChevronDown, History } from "lucide-react";
+import { convertDistance, getDistanceUnit } from "../utils/distanceUtils";
+import {
+  getTemperatureLabel,
+  getDirectionArrow,
+  formatLocationName,
+} from "../utils/gameUtils";
 
 const GuessHistoryOverlay = ({
   guesses,
@@ -10,75 +16,13 @@ const GuessHistoryOverlay = ({
 }) => {
   const scrollRef = useRef(null);
 
-  // Scroll to top when new guesses are added
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTo({ top: 0, behavior: "smooth" });
     }
   }, [guesses]);
 
-  const convertDistance = (km) => {
-    if (useKm) return km;
-    return Math.round(km * 0.621371); // Convert to miles
-  };
-
-  const distanceUnit = useKm ? "km" : "mi";
-
-  const getTemperatureLabel = (distance) => {
-    if (distance < 50)
-      return { text: "Perfect!", color: "text-green-600 bg-green-50" };
-    if (distance < 500)
-      return { text: "Fire", color: "text-red-600 bg-red-50" };
-    if (distance < 1500)
-      return { text: "Hot", color: "text-orange-600 bg-orange-50" };
-    if (distance < 3000)
-      return { text: "Warm", color: "text-yellow-600 bg-yellow-50" };
-    if (distance < 6000)
-      return { text: "Chilly", color: "text-blue-400 bg-blue-50" };
-    if (distance < 10000)
-      return { text: "Cold", color: "text-blue-600 bg-blue-100" };
-    return { text: "Freezing", color: "text-indigo-700 bg-indigo-100" };
-  };
-
-  const getDirectionArrow = (direction) => {
-    const arrows = {
-      N: "⬆️",
-      NE: "↗️",
-      E: "➡️",
-      SE: "↘️",
-      S: "⬇️",
-      SW: "↙️",
-      W: "⬅️",
-      NW: "↖️",
-    };
-    return arrows[direction] || "";
-  };
-
-  const formatLocationName = (guess) => {
-    if (guess.address) {
-      const { city, town, village, hamlet, suburb, state, country } =
-        guess.address;
-      const mainName = city || town || village || hamlet || suburb;
-      if (mainName) {
-        const context = country || state;
-        return context ? `${mainName}, ${context}` : mainName;
-      }
-    }
-
-    const fullAddress = guess.guess;
-    if (!fullAddress) return "";
-    const parts = fullAddress.split(",").map((p) => p.trim());
-    if (parts.length === 0) return fullAddress;
-
-    const firstPart = parts[0];
-    const isHouseNumber = /^[\d\-\s]+[a-zA-Z]?$/.test(firstPart);
-
-    if (isHouseNumber && parts.length > 1) {
-      return `${firstPart} ${parts[1]}`;
-    }
-
-    return firstPart;
-  };
+  const distanceUnit = getDistanceUnit(useKm);
 
   if (!isExpanded) {
     return (
@@ -146,7 +90,7 @@ const GuessHistoryOverlay = ({
               <div className="flex items-center gap-1 text-xs text-gray-600">
                 <TrendingDown className="w-3 h-3" />
                 <span>
-                  {convertDistance(guess.distance).toLocaleString()}{" "}
+                  {convertDistance(guess.distance, useKm).toLocaleString()}{" "}
                   {distanceUnit}
                 </span>
                 {guesses.length >= 2 &&

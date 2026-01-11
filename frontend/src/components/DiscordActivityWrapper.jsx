@@ -1,12 +1,10 @@
 import { useEffect, useState, useCallback } from "react";
 import { DiscordSDK } from "@discord/embedded-app-sdk";
 import { DiscordContext } from "../contexts/DiscordContext";
+import { API_BASE_URL } from "../utils/apiUtils";
+import { getDiscordAuthUrl } from "../utils/discordUtils";
 
-// Placeholder Client ID - User needs to replace this
 const DISCORD_CLIENT_ID = "1442219897131368508";
-
-// API Base URL
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
 
 // Module-level flag to prevent double code exchange in React Strict Mode
 let processedCode = null;
@@ -246,13 +244,9 @@ const DiscordActivityWrapper = ({ children }) => {
     }
   }, []);
 
-  // Handle web login redirect
   const handleWebLogin = () => {
-    const redirectUri = encodeURIComponent(
-      window.location.origin.replace(/\/+$/, "")
-    );
-    const scope = encodeURIComponent("identify guilds");
-    const authUrl = `https://discord.com/api/oauth2/authorize?client_id=${DISCORD_CLIENT_ID}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}`;
+    const redirectUri = window.location.origin;
+    const authUrl = getDiscordAuthUrl(DISCORD_CLIENT_ID, redirectUri);
     window.location.href = authUrl;
   };
 
