@@ -356,23 +356,67 @@ fastify.post("/api/guess", async (request, reply) => {
 // Tile Proxy for Discord Activity (CSP Bypass)
 fastify.get("/api/tiles/:z/:x/:y", async (request, reply) => {
   const { z, x, y } = request.params;
-  // Using CartoDB Voyager tiles (same as frontend)
-  const tileUrl = `https://basemaps.cartocdn.com/rastertiles/voyager/${z}/${x}/${y}.png`;
 
-  try {
-    const response = await fetch(tileUrl);
-    if (!response.ok)
-      throw new Error(`Tile fetch failed: ${response.statusText}`);
+  // Multiple tile providers as fallbacks (same order as frontend)
+  const tileProviders = [
+    {
+      name: "CartoDB Voyager",
+      url: `https://basemaps.cartocdn.com/rastertiles/voyager/${z}/${x}/${y}.png`,
+    },
+    {
+      name: "OpenStreetMap",
+      url: `https://tile.openstreetmap.org/${z}/${x}/${y}.png`,
+    },
+    {
+      name: "CartoDB Positron",
+      url: `https://basemaps.cartocdn.com/light_all/${z}/${x}/${y}.png`,
+    },
+    {
+      name: "Esri WorldStreetMap",
+      url: `https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/${z}/${y}/${x}`,
+    },
+  ];
 
-    const arrayBuffer = await response.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
+  // Try each provider in sequence until one succeeds
+  for (let i = 0; i < tileProviders.length; i++) {
+    const provider = tileProviders[i];
+    try {
+      const response = await fetch(provider.url, {
+        headers: {
+          "User-Agent": "Locodle/1.0",
+        },
+      });
 
-    reply.header("Content-Type", "image/png");
-    reply.header("Cache-Control", "public, max-age=86400"); // Cache for 1 day
-    return reply.send(buffer);
-  } catch (error) {
-    fastify.log.error(`Tile proxy error: ${error.message}`);
-    return reply.code(500).send("Failed to fetch tile");
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const arrayBuffer = await response.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+
+      reply.header("Content-Type", "image/png");
+      reply.header("Cache-Control", "public, max-age=86400"); // Cache for 1 day
+
+      // Log fallback usage for monitoring
+      if (i > 0) {
+        fastify.log.warn(
+          `Tile proxy used fallback provider: ${provider.name} for tile ${z}/${x}/${y}`
+        );
+      }
+
+      return reply.send(buffer);
+    } catch (error) {
+      fastify.log.warn(
+        `Tile provider ${provider.name} failed for ${z}/${x}/${y}: ${error.message}`
+      );
+
+      // If this was the last provider, return error
+      if (i === tileProviders.length - 1) {
+        fastify.log.error(`All tile providers failed for ${z}/${x}/${y}`);
+        return reply.code(500).send("Failed to fetch tile from all providers");
+      }
+      // Otherwise, continue to next provider
+    }
   }
 });
 

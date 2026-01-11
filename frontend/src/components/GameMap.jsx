@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import {
   MapContainer,
   TileLayer,
@@ -82,6 +83,36 @@ const GameMap = ({
   const center = [20, 0]; // Center of the world
   const zoom = 2;
 
+  // Multiple tile providers as fallbacks
+  const tileProviders = [
+    {
+      name: "CartoDB Voyager",
+      url: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png",
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>',
+    },
+    {
+      name: "OpenStreetMap",
+      url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    },
+    {
+      name: "CartoDB Positron",
+      url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>',
+    },
+    {
+      name: "Esri WorldStreetMap",
+      url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}",
+      attribution: "Tiles &copy; Esri",
+    },
+  ];
+
+  const [currentProviderIndex, setCurrentProviderIndex] = useState(0);
+  const [tileKey, setTileKey] = useState(0);
+
   const convertDistance = (km) => {
     if (useKm) return km;
     return Math.round(km * 0.621371); // Convert to miles
@@ -89,10 +120,27 @@ const GameMap = ({
 
   const distanceUnit = useKm ? "km" : "mi";
 
-  // Use local proxy if in Discord to avoid CSP issues
-  const tileUrl = isDiscord
-    ? "/api/tiles/{z}/{x}/{y}"
-    : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
+  // Handle tile loading errors by switching to next provider
+  const handleTileError = () => {
+    console.warn(
+      `Tile provider ${tileProviders[currentProviderIndex].name} failed, trying fallback...`
+    );
+
+    const nextIndex = (currentProviderIndex + 1) % tileProviders.length;
+
+    // Prevent infinite loop - if we've tried all providers, stop
+    if (nextIndex !== 0 || currentProviderIndex === 0) {
+      setCurrentProviderIndex(nextIndex);
+      setTileKey((prev) => prev + 1); // Force TileLayer remount
+    }
+  };
+
+  // Use local proxy if in Discord to avoid CSP issues, otherwise use current provider
+  const currentProvider = tileProviders[currentProviderIndex];
+  const tileUrl = isDiscord ? "/api/tiles/{z}/{x}/{y}" : currentProvider.url;
+  const attribution = isDiscord
+    ? '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    : currentProvider.attribution;
 
   return (
     <div className="relative h-full w-full">
@@ -103,8 +151,12 @@ const GameMap = ({
         className="h-full w-full z-0"
       >
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>'
+          key={tileKey}
+          attribution={attribution}
           url={tileUrl}
+          eventHandlers={{
+            tileerror: handleTileError,
+          }}
         />
         <ScaleControl
           key={`scale-${useKm}`}
