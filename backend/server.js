@@ -360,20 +360,20 @@ fastify.get("/api/tiles/:z/:x/:y", async (request, reply) => {
   // Multiple tile providers as fallbacks (same order as frontend)
   const tileProviders = [
     {
-      name: "CartoDB Voyager",
-      url: `https://basemaps.cartocdn.com/rastertiles/voyager/${z}/${x}/${y}.png`,
+      name: "Esri WorldStreetMap",
+      url: `https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/${z}/${y}/${x}`,
     },
     {
       name: "OpenStreetMap",
       url: `https://tile.openstreetmap.org/${z}/${x}/${y}.png`,
     },
     {
-      name: "CartoDB Positron",
-      url: `https://basemaps.cartocdn.com/light_all/${z}/${x}/${y}.png`,
+      name: "CartoDB Voyager",
+      url: `https://basemaps.cartocdn.com/rastertiles/voyager/${z}/${x}/${y}.png`,
     },
     {
-      name: "Esri WorldStreetMap",
-      url: `https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/${z}/${y}/${x}`,
+      name: "CartoDB Positron",
+      url: `https://basemaps.cartocdn.com/light_all/${z}/${x}/${y}.png`,
     },
   ];
 
