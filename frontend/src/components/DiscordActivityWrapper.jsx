@@ -16,6 +16,7 @@ const DiscordActivityWrapper = ({ children }) => {
   const [discordSdk, setDiscordSdk] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
   const [webLoginRequired, setWebLoginRequired] = useState(false);
+  const [isGuestMode, setIsGuestMode] = useState(false);
 
   // Analytics Helper
   const trackEvent = useCallback(
@@ -182,7 +183,15 @@ const DiscordActivityWrapper = ({ children }) => {
       };
       setupDiscordSdk();
     } else {
-      // Web Flow - Check for existing session or OAuth callback
+      // Web Flow - Check for guest mode first
+      const guestMode = localStorage.getItem("locodle-guest-mode");
+      if (guestMode === "true") {
+        setIsGuestMode(true);
+        setAuth({ authenticated: true, guest: true });
+        return;
+      }
+
+      // Check for existing Discord session
       const storedUser = localStorage.getItem("discord_user");
       if (storedUser) {
         try {
@@ -250,11 +259,21 @@ const DiscordActivityWrapper = ({ children }) => {
     window.location.href = authUrl;
   };
 
+  // Handle guest login
+  const handleGuestLogin = () => {
+    localStorage.setItem("locodle-guest-mode", "true");
+    setIsGuestMode(true);
+    setWebLoginRequired(false);
+    setAuth({ authenticated: true, guest: true });
+  };
+
   // Handle logout
   const handleLogout = () => {
     localStorage.removeItem("discord_user");
+    localStorage.removeItem("locodle-guest-mode");
     setCurrentUser(null);
     setAuth(null);
+    setIsGuestMode(false);
     setWebLoginRequired(true);
   };
 
@@ -291,8 +310,16 @@ const DiscordActivityWrapper = ({ children }) => {
           </svg>
           Continue with Discord
         </button>
+        <button
+          onClick={handleGuestLogin}
+          className="w-full bg-gray-700 hover:bg-gray-600 text-white font-bold py-3 px-6 rounded-lg flex items-center justify-center gap-2 transition-colors mt-3"
+        >
+          Continue as Guest
+        </button>
         <p className="text-gray-500 text-sm mt-4">
-          Your progress syncs across web and Discord
+          Discord: Progress syncs across devices
+          <br />
+          Guest: Progress saved locally only
         </p>
       </div>
     </div>
@@ -306,6 +333,7 @@ const DiscordActivityWrapper = ({ children }) => {
           isDiscord: false,
           user: null,
           sdk: null,
+          isGuestMode: false,
           trackEvent,
           logout: handleLogout,
           setActivityStatus,
@@ -327,6 +355,7 @@ const DiscordActivityWrapper = ({ children }) => {
           isDiscord: false,
           user: currentUser,
           sdk: null,
+          isGuestMode: isGuestMode,
           trackEvent,
           logout: handleLogout,
           setActivityStatus,
@@ -347,6 +376,7 @@ const DiscordActivityWrapper = ({ children }) => {
           isDiscord: false,
           user: null,
           sdk: null,
+          isGuestMode: false,
           trackEvent,
           logout: handleLogout,
           setActivityStatus,
@@ -389,6 +419,7 @@ const DiscordActivityWrapper = ({ children }) => {
         isDiscord,
         user: currentUser,
         sdk: discordSdk,
+        isGuestMode: false,
         trackEvent,
         logout: handleLogout,
         setActivityStatus,

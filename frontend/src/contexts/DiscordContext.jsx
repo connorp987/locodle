@@ -4,6 +4,7 @@ export const DiscordContext = createContext({
   isDiscord: false,
   user: null,
   sdk: null,
+  isGuestMode: false,
   trackEvent: () => {},
   logout: () => {},
   setActivityStatus: () => {},

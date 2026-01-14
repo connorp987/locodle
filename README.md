@@ -1,6 +1,6 @@
 # Locodle v2.0 🌍
 
-A modern geo-location guessing game built with React and Fastify. Guess famous landmarks and locations around the world in 6 tries or less!
+A modern geo-location guessing game built with React and Fastify. Guess famous landmarks and locations around the world in 6 tries or less! Available as a web app and Discord Activity.
 
 ## Features
 
@@ -10,6 +10,9 @@ A modern geo-location guessing game built with React and Fastify. Guess famous l
 - 📊 Real-time statistics and guess history
 - 🎨 Beautiful, modern UI with TailwindCSS
 - 📱 Responsive design
+- 🎮 Discord Activity integration - play directly in Discord
+- 🤖 Discord bot with automated daily challenges
+- 🗄️ PostgreSQL database for persistent data
 
 ## Tech Stack
 
@@ -19,10 +22,16 @@ A modern geo-location guessing game built with React and Fastify. Guess famous l
 - **TailwindCSS** - Styling
 - **Leaflet & React-Leaflet** - Interactive maps
 - **Lucide React** - Icons
+- **Discord Embedded App SDK** - Discord Activity integration
 
 ### Backend
 - **Fastify** - Fast and efficient Node.js web framework
-- **CORS** - Cross-origin resource sharing
+- **PostgreSQL** - Database for locations and game state
+- **Discord.js** - Discord bot integration
+- **Node-cron** - Scheduled tasks for daily challenges
+- **@fastify/cors** - Cross-origin resource sharing
+- **@fastify/rate-limit** - API rate limiting
+- **@fastify/static** - Static file serving
 - **ES Modules** - Modern JavaScript
 
 ## Getting Started
@@ -46,6 +55,16 @@ cd backend
 cp .env.example .env
 npm install
 ```
+
+Edit `backend/.env` and configure the following:
+- `PORT` - Backend server port (default: 3001)
+- `GA_MEASUREMENT_ID` - Google Analytics measurement ID (optional)
+- `GA_API_SECRET` - Google Analytics API secret (optional)
+- `DISCORD_CLIENT_ID` - Discord application client ID (required for Discord Activity)
+- `DISCORD_CLIENT_SECRET` - Discord application client secret (required for Discord Activity)
+- `DISCORD_BOT_TOKEN` - Discord bot token (required for Discord bot features)
+
+**Note:** Discord credentials are required if you want to use the Discord Activity or bot features. For web-only usage, you can leave these blank.
 
 3. **Install Frontend Dependencies**
 ```bash
@@ -126,24 +145,46 @@ docker exec -it locodle-postgres psql -U locodle -d locodle
 locodle-second/
 ├── backend/
 │   ├── data/
-│   │   └── locations.js      # Location database
-│   ├── server.js              # Fastify server
+│   │   └── locations.js           # Location database
+│   ├── db/
+│   │   ├── migrations/            # Database migrations
+│   │   ├── connection.js          # PostgreSQL connection
+│   │   └── init.sql               # Database schema
+│   ├── scripts/
+│   │   ├── check-locations.js     # Location validation script
+│   │   ├── clear-today-location.js # Reset daily challenge
+│   │   └── init-db.js             # Database initialization
+│   ├── services/
+│   │   ├── discordBot.js          # Discord bot service
+│   │   └── locationGenerator.js   # Daily location generation
+│   ├── server.js                  # Fastify server
+│   ├── .env.example               # Environment variables template
 │   └── package.json
 ├── frontend/
 │   ├── src/
-│   │   ├── components/        # React components
-│   │   │   ├── GameMap.jsx
-│   │   │   ├── GuessInput.jsx
-│   │   │   ├── GuessHistory.jsx
-│   │   │   ├── GameStats.jsx
-│   │   │   └── HintsPanel.jsx
-│   │   ├── App.jsx            # Main app component
-│   │   ├── main.jsx           # Entry point
-│   │   └── index.css          # Global styles
+│   │   ├── components/
+│   │   │   ├── DiscordActivityWrapper.jsx  # Discord Activity integration
+│   │   │   ├── GameMap.jsx                 # Interactive map
+│   │   │   ├── GuessInput.jsx              # Search and guess input
+│   │   │   ├── GuessInputOverlay.jsx       # Overlay for guess input
+│   │   │   ├── GuessHistory.jsx            # Guess history display
+│   │   │   ├── GuessHistoryOverlay.jsx     # Overlay for guess history
+│   │   │   ├── GameStats.jsx               # Game statistics
+│   │   │   ├── HintsPanel.jsx              # Hints display
+│   │   │   ├── GameOverModal.jsx           # Game over screen
+│   │   │   ├── GuessResultModal.jsx        # Guess feedback modal
+│   │   │   └── UserStatsModal.jsx          # User statistics modal
+│   │   ├── contexts/                       # React contexts
+│   │   ├── App.jsx                         # Main app component
+│   │   ├── main.jsx                        # Entry point
+│   │   └── index.css                       # Global styles
+│   ├── public/                             # Static assets
 │   ├── index.html
 │   ├── vite.config.js
 │   ├── tailwind.config.js
+│   ├── postcss.config.js
 │   └── package.json
+├── docker-compose.yml                      # PostgreSQL container config
 └── README.md
 ```
 
@@ -177,6 +218,44 @@ To expand the location pool, edit `backend/services/locationGenerator.js` and ad
 
 Hints are automatically generated based on the location type, hemisphere, and continent.
 
+## Discord Integration
+
+### Setting Up Discord Activity
+
+To enable the Discord Activity feature:
+
+1. Create a Discord application at [Discord Developer Portal](https://discord.com/developers/applications)
+2. Enable "Embedded App SDK" in your application settings
+3. Add your application's Client ID to `backend/.env` as `DISCORD_CLIENT_ID`
+4. Add your Client Secret to `backend/.env` as `DISCORD_CLIENT_SECRET`
+5. The same Client ID must be hardcoded in `frontend/src/components/DiscordActivityWrapper.jsx`
+
+### Setting Up Discord Bot
+
+To enable the Discord bot for automated daily challenges:
+
+1. Create a bot in your Discord application
+2. Enable necessary bot permissions (Send Messages, Embed Links)
+3. Add the bot token to `backend/.env` as `DISCORD_BOT_TOKEN`
+4. Invite the bot to your Discord server
+5. The bot will automatically post daily challenges using node-cron scheduling
+
+## Database Scripts
+
+Useful scripts for database management:
+
+```bash
+# Initialize database (run after docker-compose up)
+cd backend
+npm run init-db
+
+# Check location data validity
+node scripts/check-locations.js
+
+# Clear today's location (for testing)
+node scripts/clear-today-location.js
+```
+
 ## Building for Production
 
 ### Frontend
@@ -185,17 +264,24 @@ cd frontend
 npm run build
 ```
 
+The build output will be in `frontend/dist/` and can be deployed to any static hosting service.
+
 ### Backend
-The backend is ready for production as-is. Deploy to your preferred hosting platform.
+The backend is ready for production as-is. Deploy to your preferred hosting platform (Heroku, Railway, Render, etc.) and ensure:
+- PostgreSQL database is provisioned
+- Environment variables are configured
+- Port is properly exposed
 
 ## Future Enhancements
 
-- [ ] User accounts and persistent statistics
-- [ ] Leaderboards
-- [ ] Multiple game modes (unlimited, timed, etc.)
+- [ ] User accounts and persistent statistics across sessions
+- [ ] Global leaderboards
+- [ ] Multiple game modes (unlimited, timed, themed challenges)
 - [ ] Share results on social media
-- [ ] More locations and categories
-- [ ] Multiplayer mode
+- [ ] More locations and categories (cultural sites, modern architecture, etc.)
+- [ ] Multiplayer competitive mode
+- [ ] Custom location packs
+- [ ] Achievement system
 
 ## License
 
