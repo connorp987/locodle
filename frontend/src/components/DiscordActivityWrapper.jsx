@@ -21,6 +21,29 @@ const DiscordActivityWrapper = ({ children }) => {
   // Analytics Helper
   const trackEvent = useCallback(
     async (eventName, params = {}) => {
+      let userType;
+      if (isGuestMode) {
+        userType = "guest";
+      } else if (currentUser?.username) {
+        userType = "discord_user";
+      } else {
+        userType = "anonymous";
+      }
+
+      const platform = isDiscord ? "discord_activity" : "web";
+      const userId =
+        currentUser?.id || (isGuestMode ? "guest_user" : "anonymous");
+      const username =
+        currentUser?.username || (isGuestMode ? "Guest" : "Anonymous");
+
+      const enhancedEventInfo = {
+        ...params,
+        platform: platform,
+        user_type: userType,
+        user_id: userId,
+        username: username,
+      };
+
       if (isDiscord) {
         // Send to Backend Proxy
         try {
@@ -30,8 +53,8 @@ const DiscordActivityWrapper = ({ children }) => {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               event_name: eventName,
-              params: params,
-              client_id: currentUser?.id || "anonymous_discord_user",
+              params: enhancedEventInfo,
+              client_id: userId,
             }),
           });
         } catch (e) {
@@ -40,11 +63,19 @@ const DiscordActivityWrapper = ({ children }) => {
       } else {
         // Standard Web GA
         if (window.gtag) {
-          window.gtag("event", eventName, params);
+          // Set user properties for segmentation
+          window.gtag("set", "user_properties", {
+            platform: platform,
+            user_type: userType,
+            username: username,
+          });
+
+          // Send event with enhanced params
+          window.gtag("event", eventName, enhancedEventInfo);
         }
       }
     },
-    [isDiscord, currentUser?.id]
+    [isDiscord, currentUser?.id, currentUser?.username, isGuestMode]
   );
 
   // Update Discord Activity status (Rich Presence)
