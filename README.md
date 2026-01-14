@@ -172,7 +172,6 @@ locodle-second/
 │   │   │   ├── GameStats.jsx               # Game statistics
 │   │   │   ├── HintsPanel.jsx              # Hints display
 │   │   │   ├── GameOverModal.jsx           # Game over screen
-│   │   │   ├── GuessResultModal.jsx        # Guess feedback modal
 │   │   │   └── UserStatsModal.jsx          # User statistics modal
 │   │   ├── contexts/                       # React contexts
 │   │   ├── App.jsx                         # Main app component
