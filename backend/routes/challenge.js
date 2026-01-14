@@ -143,9 +143,11 @@ export default async function challengeRoutes(fastify) {
             );
           }
 
+          const currentGameMode = request.body.gameMode || "hard";
+
           await pool.query(
-            `INSERT INTO user_guesses (user_id, date, guess_number, lat, lng, location_name, distance, score, direction)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+            `INSERT INTO user_guesses (user_id, date, guess_number, lat, lng, location_name, distance, score, direction, game_mode)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
             [
               discord_user_id,
               gameDate,
@@ -156,6 +158,7 @@ export default async function challengeRoutes(fastify) {
               Math.round(distance),
               score,
               direction,
+              currentGameMode,
             ]
           );
 
@@ -163,10 +166,19 @@ export default async function challengeRoutes(fastify) {
             try {
               const gameMode = request.body.gameMode || "hard";
 
+              // Count how many guesses were made in easy mode
+              const easyGuessesResult = await pool.query(
+                `SELECT COUNT(*) as easy_count FROM user_guesses 
+                 WHERE user_id = $1 AND date = $2 AND game_mode = 'easy'`,
+                [discord_user_id, gameDate]
+              );
+              const easyGuessesCount =
+                parseInt(easyGuessesResult.rows[0].easy_count) || 0;
+
               await pool.query(
-                `INSERT INTO daily_results (user_id, guild_id, date, score, guesses_count, won, game_mode)
-                 VALUES ($1, $2, $3, $4, $5, true, $6)
-                 ON CONFLICT (user_id, date) DO UPDATE SET score = $4, guesses_count = $5, won = true, guild_id = $2, game_mode = $6`,
+                `INSERT INTO daily_results (user_id, guild_id, date, score, guesses_count, won, game_mode, easy_guesses_count)
+                 VALUES ($1, $2, $3, $4, $5, true, $6, $7)
+                 ON CONFLICT (user_id, date) DO UPDATE SET score = $4, guesses_count = $5, won = true, guild_id = $2, game_mode = $6, easy_guesses_count = $7`,
                 [
                   discord_user_id,
                   guild_id,
@@ -174,6 +186,7 @@ export default async function challengeRoutes(fastify) {
                   Math.round(distance),
                   request.body.guessCount || 1,
                   gameMode,
+                  easyGuessesCount,
                 ]
               );
 

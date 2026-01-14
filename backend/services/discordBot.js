@@ -531,7 +531,7 @@ export async function postOrUpdateCompletionMessage(
 
     // Get all completions for this guild/date
     const completionsResult = await pool.query(
-      `SELECT u.id as user_id, u.username, r.guesses_count, r.won, r.game_mode
+      `SELECT u.id as user_id, u.username, r.guesses_count, r.won, r.game_mode, r.easy_guesses_count
        FROM daily_results r
        JOIN discord_users u ON r.user_id = u.id
        WHERE r.date = $1 AND r.guild_id = $2
@@ -557,8 +557,16 @@ export async function postOrUpdateCompletionMessage(
       const emoji = row.won ? "✅" : "❌";
       const medal =
         index === 0 ? "🥇 " : index === 1 ? "🥈 " : index === 2 ? "🥉 " : "";
-      const modeIndicator = row.game_mode === "easy" ? " (Easy)" : "";
-      messageContent += `${medal}<@${row.user_id}> ${emoji} ${
+
+      let modeIndicator = "";
+      const easyCount = row.easy_guesses_count || 0;
+      if (easyCount > 0) {
+        modeIndicator = ` (${easyCount} Easy guess${
+          easyCount !== 1 ? "es" : ""
+        })`;
+      }
+
+      messageContent += `${medal}**${row.username}** ${emoji} ${
         row.guesses_count
       } guess${row.guesses_count !== 1 ? "es" : ""} ${modeIndicator}\n`;
     });
