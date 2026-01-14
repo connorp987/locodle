@@ -570,50 +570,37 @@ export async function postOrUpdateCompletionMessage(
     );
 
     if (existingMessage.rows.length > 0) {
-      // Edit existing message
+      // Delete old message and send new one so it appears at the bottom of the channel
       try {
         const message = await channel.messages.fetch(
           existingMessage.rows[0].message_id
         );
-        const playButton = new ButtonBuilder()
-          .setLabel("Play Today's Challenge")
-          .setStyle(ButtonStyle.Primary)
-          .setCustomId("play_locodle")
-          .setEmoji("🌍");
-        const row = new ActionRowBuilder().addComponents(playButton);
-
-        await message.edit({
-          content: messageContent,
-          components: [row],
-        });
-
-        // Update timestamp
-        await pool.query(
-          `UPDATE discord_completion_messages SET updated_at = CURRENT_TIMESTAMP WHERE channel_id = $1 AND date = $2`,
-          [channelId, date]
-        );
-      } catch (editError) {
-        console.error(
-          "Failed to edit message, sending new one:",
-          editError.message
-        );
-        const playButton = new ButtonBuilder()
-          .setLabel("Play Today's Challenge")
-          .setStyle(ButtonStyle.Primary)
-          .setCustomId("play_locodle")
-          .setEmoji("🌍");
-        const row = new ActionRowBuilder().addComponents(playButton);
-
-        // Message might have been deleted, send a new one
-        const newMessage = await channel.send({
-          content: messageContent,
-          components: [row],
-        });
-        await pool.query(
-          `UPDATE discord_completion_messages SET message_id = $1, updated_at = CURRENT_TIMESTAMP WHERE channel_id = $2 AND date = $3`,
-          [newMessage.id, channelId, date]
+        await message.delete();
+      } catch (deleteError) {
+        console.log(
+          "Could not delete old message (may already be deleted):",
+          deleteError.message
         );
       }
+
+      // Send new message with updated content
+      const playButton = new ButtonBuilder()
+        .setLabel("Play Today's Challenge")
+        .setStyle(ButtonStyle.Primary)
+        .setCustomId("play_locodle")
+        .setEmoji("🌍");
+      const row = new ActionRowBuilder().addComponents(playButton);
+
+      const newMessage = await channel.send({
+        content: messageContent,
+        components: [row],
+      });
+
+      // Update database with new message ID
+      await pool.query(
+        `UPDATE discord_completion_messages SET message_id = $1, updated_at = CURRENT_TIMESTAMP WHERE channel_id = $2 AND date = $3`,
+        [newMessage.id, channelId, date]
+      );
     } else {
       const playButton = new ButtonBuilder()
         .setLabel("Play Today's Challenge")
