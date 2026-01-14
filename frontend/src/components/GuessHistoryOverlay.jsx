@@ -93,8 +93,7 @@ const GuessHistoryOverlay = ({
                   {convertDistance(guess.distance, useKm).toLocaleString()}{" "}
                   {distanceUnit}
                 </span>
-                {guesses.length >= 2 &&
-                  guess.direction &&
+                {guess.direction &&
                   guess.distance >= 50 &&
                   gameMode === "easy" && (
                     <span

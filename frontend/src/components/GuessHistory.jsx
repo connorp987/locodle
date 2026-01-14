@@ -69,8 +69,7 @@ const GuessHistory = ({ guesses, useKm = true, gameMode = "hard" }) => {
                   {convertDistance(guess.distance, useKm).toLocaleString()}{" "}
                   {distanceUnit} away
                 </span>
-                {guesses.length >= 2 &&
-                  guess.direction &&
+                {guess.direction &&
                   guess.distance >= 50 &&
                   gameMode === "easy" && (
                     <span
