@@ -271,20 +271,6 @@ The backend is ready for production as-is. Deploy to your preferred hosting plat
 - Environment variables are configured
 - Port is properly exposed
 
-## Future Enhancements
-
-- [ ] User accounts and persistent statistics across sessions
-- [ ] Global leaderboards
-- [ ] Multiple game modes (unlimited, timed, themed challenges)
-- [ ] Share results on social media
-- [ ] More locations and categories (cultural sites, modern architecture, etc.)
-- [ ] Multiplayer competitive mode
-- [ ] Custom location packs
-- [ ] Achievement system
-
-## License
-
-MIT
 
 ## Credits
 
