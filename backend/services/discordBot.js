@@ -44,7 +44,7 @@ export const initDiscordBot = async () => {
 
   client.once(Events.ClientReady, async (c) => {
     console.log(
-      `🤖 Discord Bot ready! [PID: ${process.pid}] Logged in as ${c.user.tag}`
+      `🤖 Discord Bot ready! [PID: ${process.pid}] Logged in as ${c.user.tag}`,
     );
 
     // Register Slash Commands
@@ -95,14 +95,14 @@ export const initDiscordBot = async () => {
       },
       {
         timezone: "America/New_York",
-      }
+      },
     );
 
     console.log(
       `📅 Daily summaries scheduled for ${SUMMARY_HOUR}:${SUMMARY_MINUTE.padStart(
         2,
-        "0"
-      )} Eastern`
+        "0",
+      )} Eastern`,
     );
 
     // Pre-generate today's location at 12:15 AM Eastern
@@ -111,7 +111,7 @@ export const initDiscordBot = async () => {
       async () => {
         const now = new Date();
         const eastern = new Date(
-          now.toLocaleString("en-US", { timeZone: "America/New_York" })
+          now.toLocaleString("en-US", { timeZone: "America/New_York" }),
         );
         const today = eastern.toISOString().split("T")[0];
         console.log(`🌍 Pre-generating location for ${today}...`);
@@ -121,13 +121,13 @@ export const initDiscordBot = async () => {
         } catch (error) {
           console.error(
             `❌ Failed to pre-generate location for ${today}:`,
-            error
+            error,
           );
         }
       },
       {
         timezone: "America/New_York",
-      }
+      },
     );
   });
 
@@ -140,7 +140,7 @@ export const initDiscordBot = async () => {
     if (interaction.isButton()) {
       if (interaction.customId === "play_locodle") {
         console.log(
-          `[PID: ${process.pid}] Play button clicked by ${interaction.user.tag}`
+          `[PID: ${process.pid}] Play button clicked by ${interaction.user.tag}`,
         );
 
         try {
@@ -150,25 +150,25 @@ export const initDiscordBot = async () => {
           // Use the raw API to respond with type 12 (LAUNCH_ACTIVITY)
           await interaction.client.rest.post(
             Routes.interactionCallback(interaction.id, interaction.token),
-            { body: { type: 12 } }
+            { body: { type: 12 } },
           );
 
           console.log(
-            `[PID: ${process.pid}] Successfully sent LAUNCH_ACTIVITY response.`
+            `[PID: ${process.pid}] Successfully sent LAUNCH_ACTIVITY response.`,
           );
         } catch (error) {
           // If we get an "Unknown Interaction" error, it's almost certainly because
           // another bot process handled it first.
           if (error.code === 10062) {
             console.warn(
-              `[PID: ${process.pid}] Interaction ${interaction.id} already handled by another instance.`
+              `[PID: ${process.pid}] Interaction ${interaction.id} already handled by another instance.`,
             );
             return;
           }
 
           console.error(
             `[PID: ${process.pid}] Error launching activity:`,
-            error
+            error,
           );
 
           // Fallback only if we haven't replied yet and it's not a race condition
@@ -187,7 +187,7 @@ export const initDiscordBot = async () => {
           // Clean up the tracking set after a delay
           setTimeout(
             () => client.handledInteractions?.delete(interaction.id),
-            10000
+            10000,
           );
         }
         return;
@@ -227,7 +227,7 @@ export const initDiscordBot = async () => {
           `INSERT INTO discord_channels (channel_id, guild_id, guild_name, channel_name, is_active)
            VALUES ($1, $2, $3, $4, true)
            ON CONFLICT (channel_id) DO UPDATE SET is_active = true, guild_name = $3, channel_name = $4`,
-          [channelId, guildId, guildName, channelName]
+          [channelId, guildId, guildName, channelName],
         );
 
         const playButton = new ButtonBuilder()
@@ -243,7 +243,7 @@ export const initDiscordBot = async () => {
             `✅ **Locodle joined!**\n\n` +
             `This channel will receive daily summaries at ${SUMMARY_HOUR}:${SUMMARY_MINUTE.padStart(
               2,
-              "0"
+              "0",
             )} AM Eastern (showing yesterday's results).\n` +
             `Only players from **${guildName}** will appear on your leaderboard.\n\n` +
             `Use \`/leaderboard\` to see today's scores!`,
@@ -266,11 +266,11 @@ export const initDiscordBot = async () => {
 
         await pool.query(
           `UPDATE discord_channels SET is_active = false WHERE channel_id = $1`,
-          [channelId]
+          [channelId],
         );
 
         await interaction.editReply(
-          `👋 **Locodle left!**\n\nThis channel will no longer receive daily summaries.`
+          `👋 **Locodle left!**\n\nThis channel will no longer receive daily summaries.`,
         );
       } catch (error) {
         console.error("Leave error:", error);
@@ -290,7 +290,7 @@ export const initDiscordBot = async () => {
         // Get today's date in Eastern Time
         const now = new Date();
         const eastern = new Date(
-          now.toLocaleString("en-US", { timeZone: "America/New_York" })
+          now.toLocaleString("en-US", { timeZone: "America/New_York" }),
         );
         const today = eastern.toISOString().split("T")[0];
 
@@ -302,12 +302,12 @@ export const initDiscordBot = async () => {
            WHERE r.date = $1 AND r.guild_id = $2
            ORDER BY r.won DESC, r.guesses_count ASC, r.score ASC
            LIMIT 10`,
-          [today, guildId]
+          [today, guildId],
         );
 
         if (result.rows.length === 0) {
           await interaction.editReply(
-            `🏆 **Today's Leaderboard**\nNo results yet from this server! Be the first to play.`
+            `🏆 **Today's Leaderboard**\nNo results yet from this server! Be the first to play.`,
           );
           return;
         }
@@ -320,10 +320,10 @@ export const initDiscordBot = async () => {
             rank === 1
               ? "🥇"
               : rank === 2
-              ? "🥈"
-              : rank === 3
-              ? "🥉"
-              : `#${rank}`;
+                ? "🥈"
+                : rank === 3
+                  ? "🥉"
+                  : `#${rank}`;
           const status = row.won ? "✅" : "❌";
           leaderboardMsg += `${medal} <@${row.user_id}> ${status} - ${row.guesses_count} guesses (${row.score}km)\n`;
         });
@@ -346,7 +346,7 @@ export const initDiscordBot = async () => {
           await interaction.editReply("❌ Failed to fetch leaderboard.");
         } else {
           console.log(
-            "Could not reply to interaction (likely timed out or unknown)."
+            "Could not reply to interaction (likely timed out or unknown).",
           );
         }
       }
@@ -369,7 +369,7 @@ export const postDailyResult = async (channelId, result) => {
       const emoji = result.won ? "🎉" : "💀";
       await channel.send(
         `${emoji} **${result.username}** finished today's Locodle!\n` +
-          `Guesses: ${result.guesses_count}/6 | Distance: ${result.score}km`
+          `Guesses: ${result.guesses_count}/6 | Distance: ${result.score}km`,
       );
     }
   } catch (error) {
@@ -387,7 +387,7 @@ async function postDailySummaryToAllChannels() {
   try {
     // Get all active registered channels
     const channelsResult = await pool.query(
-      "SELECT channel_id, guild_id, guild_name FROM discord_channels WHERE is_active = true"
+      "SELECT channel_id, guild_id, guild_name FROM discord_channels WHERE is_active = true",
     );
 
     if (channelsResult.rows.length === 0) {
@@ -415,7 +415,7 @@ async function postDailySummaryToAllChannels() {
         const channel = await client.channels.fetch(channelRow.channel_id);
         if (!channel || !channel.isTextBased()) {
           console.log(
-            `Channel ${channelRow.channel_id} not found or not text-based`
+            `Channel ${channelRow.channel_id} not found or not text-based`,
           );
           continue;
         }
@@ -427,8 +427,17 @@ async function postDailySummaryToAllChannels() {
            JOIN discord_users u ON r.user_id = u.id
            WHERE r.date = $1 AND r.guild_id = $2
            ORDER BY r.won DESC, r.guesses_count ASC, r.score ASC`,
-          [yesterdayStr, channelRow.guild_id]
+          [yesterdayStr, channelRow.guild_id],
         );
+
+        // Skip channels where no one played yesterday. This avoids spamming
+        // inactive servers and prevents "streak died" noise.
+        if (result.rows.length === 0) {
+          console.log(
+            `⏭️  Skipping daily summary for ${channelRow.guild_name} (${channelRow.channel_id}): no plays on ${yesterdayStr}`,
+          );
+          continue;
+        }
 
         // Get server streak from the simple streak table
         const streakData = await getServerStreak(channelRow.guild_id);
@@ -443,9 +452,7 @@ async function postDailySummaryToAllChannels() {
         }
         summaryMsg += `\n`;
 
-        if (result.rows.length === 0) {
-          summaryMsg += `No one from this server played yesterday! 😢`;
-        } else {
+        {
           const winners = result.rows.filter((r) => r.won);
           const avgGuesses =
             result.rows.reduce((sum, r) => sum + r.guesses_count, 0) /
@@ -461,10 +468,10 @@ async function postDailySummaryToAllChannels() {
               rank === 1
                 ? "🥇"
                 : rank === 2
-                ? "🥈"
-                : rank === 3
-                ? "🥉"
-                : `#${rank}`;
+                  ? "🥈"
+                  : rank === 3
+                    ? "🥉"
+                    : `#${rank}`;
             const status = row.won ? "✅" : "❌";
             summaryMsg += `${medal} <@${row.user_id}> ${status} - ${row.guesses_count} guesses (${row.score}km)\n`;
           });
@@ -483,18 +490,18 @@ async function postDailySummaryToAllChannels() {
 
         await channel.send({ content: summaryMsg, components: [row] });
         console.log(
-          `✅ Daily summary posted to ${channelRow.guild_name} (${channelRow.channel_id})`
+          `✅ Daily summary posted to ${channelRow.guild_name} (${channelRow.channel_id})`,
         );
       } catch (channelError) {
         console.error(
           `❌ Failed to post daily summary to channel ${channelRow.channel_id} (${channelRow.guild_name}):`,
-          channelError.message
+          channelError.message,
         );
         if (channelError.code === 50001) {
           console.error(`Missing Access for channel ${channelRow.channel_id}.`);
         } else if (channelError.code === 50013) {
           console.error(
-            `Missing Permissions for channel ${channelRow.channel_id}.`
+            `Missing Permissions for channel ${channelRow.channel_id}.`,
           );
         }
       }
@@ -512,7 +519,7 @@ export async function postOrUpdateCompletionMessage(
   username,
   guessCount,
   won,
-  date
+  date,
 ) {
   if (!client || !client.isReady()) {
     console.log("Cannot post completion message: bot not ready");
@@ -536,7 +543,7 @@ export async function postOrUpdateCompletionMessage(
        JOIN discord_users u ON r.user_id = u.id
        WHERE r.date = $1 AND r.guild_id = $2
        ORDER BY r.guesses_count ASC`,
-      [date, guildId]
+      [date, guildId],
     );
 
     if (completionsResult.rows.length === 0) {
@@ -574,20 +581,20 @@ export async function postOrUpdateCompletionMessage(
     // Check if we already have a message for this channel/date
     const existingMessage = await pool.query(
       `SELECT message_id FROM discord_completion_messages WHERE channel_id = $1 AND date = $2`,
-      [channelId, date]
+      [channelId, date],
     );
 
     if (existingMessage.rows.length > 0) {
       // Delete old message and send new one so it appears at the bottom of the channel
       try {
         const message = await channel.messages.fetch(
-          existingMessage.rows[0].message_id
+          existingMessage.rows[0].message_id,
         );
         await message.delete();
       } catch (deleteError) {
         console.log(
           "Could not delete old message (may already be deleted):",
-          deleteError.message
+          deleteError.message,
         );
       }
 
@@ -607,7 +614,7 @@ export async function postOrUpdateCompletionMessage(
       // Update database with new message ID
       await pool.query(
         `UPDATE discord_completion_messages SET message_id = $1, updated_at = CURRENT_TIMESTAMP WHERE channel_id = $2 AND date = $3`,
-        [newMessage.id, channelId, date]
+        [newMessage.id, channelId, date],
       );
     } else {
       const playButton = new ButtonBuilder()
@@ -628,17 +635,17 @@ export async function postOrUpdateCompletionMessage(
         `INSERT INTO discord_completion_messages (channel_id, guild_id, date, message_id)
          VALUES ($1, $2, $3, $4)
          ON CONFLICT (channel_id, date) DO UPDATE SET message_id = $4, updated_at = CURRENT_TIMESTAMP`,
-        [channelId, guildId, date, newMessage.id]
+        [channelId, guildId, date, newMessage.id],
       );
     }
 
     console.log(
-      `✅ Completion message posted/updated for channel ${channelId}`
+      `✅ Completion message posted/updated for channel ${channelId}`,
     );
   } catch (error) {
     console.error(
       `Failed to post completion message to channel ${channelId}:`,
-      error
+      error,
     );
   }
 }
@@ -648,7 +655,7 @@ export async function getRegisteredChannelsForGuild(guildId) {
   try {
     const result = await pool.query(
       `SELECT channel_id FROM discord_channels WHERE guild_id = $1 AND is_active = true`,
-      [guildId]
+      [guildId],
     );
     return result.rows.map((row) => row.channel_id);
   } catch (error) {
@@ -684,21 +691,21 @@ export async function postResultMessage(channelId, content) {
       components: [row],
     });
     console.log(
-      `✅ Result message successfully posted to channel ${channelId}`
+      `✅ Result message successfully posted to channel ${channelId}`,
     );
     return true;
   } catch (error) {
     console.error(
       `❌ Failed to post message to channel ${channelId}:`,
-      error.message
+      error.message,
     );
     if (error.code === 50001) {
       console.error(
-        `Missing Access for channel ${channelId}. The bot might not be in the server or lacks permissions.`
+        `Missing Access for channel ${channelId}. The bot might not be in the server or lacks permissions.`,
       );
     } else if (error.code === 50013) {
       console.error(
-        `Missing Permissions for channel ${channelId}. The bot lacks Send Messages permission.`
+        `Missing Permissions for channel ${channelId}. The bot lacks Send Messages permission.`,
       );
     }
     return false;
