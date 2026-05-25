@@ -2,6 +2,9 @@
 
 A modern geo-location guessing game built with React and Fastify. Guess famous landmarks and locations around the world in 6 tries or less! Available as a web app and Discord Activity.
 
+## Join your Discord channel
+https://discord.com/oauth2/authorize?client_id=1442219897131368508&permissions=84992&integration_type=0&scope=bot
+
 ## Features
 
 - 🗺️ Interactive map with guess visualization
