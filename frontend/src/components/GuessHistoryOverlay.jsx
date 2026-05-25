@@ -24,6 +24,11 @@ const GuessHistoryOverlay = ({
 
   const distanceUnit = getDistanceUnit(useKm);
 
+  // Nothing to show until the first guess
+  if (!guesses || guesses.length === 0) {
+    return null;
+  }
+
   if (!isExpanded) {
     return (
       <button

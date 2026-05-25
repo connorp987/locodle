@@ -76,6 +76,14 @@ const GuessInput = ({
     setSuggestions([]);
   };
 
+  // Enter submits the top suggestion
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter" && suggestions.length > 0 && !isSubmitting) {
+      e.preventDefault();
+      handleSelectLocation(suggestions[0]);
+    }
+  };
+
   // Focus and select input after submission completes (only if user was typing)
   useEffect(() => {
     if (
@@ -101,7 +109,7 @@ const GuessInput = ({
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-lg p-2 max-w-md mx-auto">
+    <div className="relative bg-white rounded-lg shadow-lg p-2 max-w-md mx-auto">
       <div className="relative">
         <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
           <Search className="h-4 w-4 text-gray-400" />
@@ -112,15 +120,16 @@ const GuessInput = ({
           type="text"
           value={input}
           onChange={handleInputChange}
+          onKeyDown={handleKeyDown}
           disabled={disabled || isSubmitting}
           placeholder="Search or click map..."
           className="block w-full pl-8 pr-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
         />
       </div>
 
-      {/* Suggestions dropdown */}
+      {/* Suggestions dropdown — opens upward (input sits at screen bottom) */}
       {suggestions.length > 0 && (
-        <div className="mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
+        <div className="absolute left-2 right-2 bottom-full mb-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
           {suggestions.map((location, index) => (
             <button
               key={index}

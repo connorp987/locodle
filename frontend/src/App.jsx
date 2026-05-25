@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { MapPin, Trophy, Info, Calendar, LogOut } from "lucide-react";
+import { MapPin, Trophy, Info, Calendar, LogOut, X } from "lucide-react";
 import GameMap from "./components/GameMap";
 import GuessInputOverlay from "./components/GuessInputOverlay";
 import HintsPanel from "./components/HintsPanel";
 import GameOverModal from "./components/GameOverModal";
 import UserStatsModal from "./components/UserStatsModal";
+import DiscordIcon from "./components/DiscordIcon";
 import { useDiscord } from "./contexts/DiscordContext";
-import { getEasternDateString } from "./utils/dateUtils";
+import { getEasternDateString, formatDisplayDate } from "./utils/dateUtils";
 import { API_BASE_URL } from "./utils/apiUtils";
 import { getDiscordAvatarUrl } from "./utils/discordUtils";
 
@@ -40,6 +41,14 @@ function App() {
   const [showGameOverModal, setShowGameOverModal] = useState(false);
   const [historyExpanded, setHistoryExpanded] = useState(true);
   const [showStatsModal, setShowStatsModal] = useState(false);
+  const [toast, setToast] = useState(null);
+  const toastTimer = useRef(null);
+
+  const showToast = useCallback((message) => {
+    setToast(message);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 3500);
+  }, []);
   const {
     isDiscord,
     trackEvent,
@@ -306,11 +315,11 @@ function App() {
           })
         );
       } else {
-        alert(result.error || "Failed to submit guess");
+        showToast(result.error || "Failed to submit guess");
       }
     } catch (error) {
       console.error("Failed to submit guess:", error);
-      alert("Failed to submit guess");
+      showToast("Failed to submit guess. Check your connection.");
     } finally {
       isSubmitting.current = false;
       setSubmitting(false);
@@ -416,13 +425,7 @@ function App() {
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-[#5865F2] hover:bg-[#4752C4] text-white text-sm rounded-lg transition-colors md:hidden"
                 title="Sign in with Discord"
               >
-                <svg
-                  className="w-4 h-4"
-                  viewBox="0 0 24 24"
-                  fill="currentColor"
-                >
-                  <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z" />
-                </svg>
+                <DiscordIcon className="w-4 h-4" />
                 Sign in
               </button>
             )}
@@ -439,7 +442,9 @@ function App() {
                   className="flex items-center gap-1.5 px-3 py-1.5 md:px-4 md:py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors shadow-sm text-sm md:text-base"
                 >
                   <Calendar className="w-4 h-4 md:w-5 md:h-5 text-primary-600" />
-                  <span className="font-medium">{currentDate}</span>
+                  <span className="font-medium">
+                    {formatDisplayDate(currentDate)}
+                  </span>
                 </button>
 
                 {showDatePicker && (
@@ -469,7 +474,7 @@ function App() {
                                 : "text-gray-600"
                             }`}
                           >
-                            <span>{date}</span>
+                            <span>{formatDisplayDate(date)}</span>
                             {currentDate === date && (
                               <div className="w-2 h-2 rounded-full bg-primary-500" />
                             )}
@@ -483,6 +488,9 @@ function App() {
 
               <button
                 onClick={() => setUseKm(!useKm)}
+                title={`Distance in ${
+                  useKm ? "kilometers" : "miles"
+                } — tap to switch to ${useKm ? "miles" : "kilometers"}`}
                 className="px-3 py-1.5 md:px-4 md:py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm md:text-base"
               >
                 {useKm ? "km" : "mi"}
@@ -491,6 +499,11 @@ function App() {
               <button
                 onClick={() =>
                   setGameMode(gameMode === "hard" ? "easy" : "hard")
+                }
+                title={
+                  gameMode === "hard"
+                    ? "Hard mode: distance only. Tap for Easy (adds hints + direction arrows)."
+                    : "Easy mode: hints + direction arrows shown. Tap for Hard (distance only)."
                 }
                 className={`px-3 py-1.5 md:px-4 md:py-2 rounded-lg transition-colors font-medium text-sm md:text-base ${
                   gameMode === "hard"
@@ -639,14 +652,35 @@ function App() {
               </h2>
               <button
                 onClick={() => setShowHintsModal(false)}
-                className="text-gray-400 hover:text-gray-600 text-2xl font-bold w-8 h-8 flex items-center justify-center"
+                aria-label="Close hints"
+                className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full w-8 h-8 flex items-center justify-center transition-colors"
               >
-                ×
+                <X className="w-6 h-6" />
               </button>
             </div>
             <div className="p-6">
               <HintsPanel hints={challenge.hints} />
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Error toast */}
+      {toast && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[4000] px-4 w-full max-w-sm">
+          <div
+            role="alert"
+            className="flex items-start gap-2 bg-red-600 text-white px-4 py-3 rounded-xl shadow-2xl"
+          >
+            <Info className="w-5 h-5 flex-shrink-0 mt-0.5" />
+            <p className="text-sm font-medium flex-1">{toast}</p>
+            <button
+              onClick={() => setToast(null)}
+              aria-label="Dismiss"
+              className="flex-shrink-0 text-white/80 hover:text-white"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
         </div>
       )}
