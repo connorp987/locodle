@@ -385,7 +385,7 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex flex-col h-[100dvh] overflow-hidden">
+    <div className="bg-gradient-to-br from-blue-50 to-indigo-100 flex flex-col h-[100dvh] overflow-hidden">
       {/* Header */}
       <header className="bg-white shadow-md flex-shrink-0">
         <div className="max-w-7xl mx-auto px-4 py-0.5 sm:py-1">
