@@ -1,16 +1,18 @@
+// hex mirrors the `heat` colors in tailwind.config.js (used for map pins)
 export function getTemperatureLabel(distance) {
   if (distance < 50)
-    return { text: "Perfect!", color: "text-green-600 bg-green-50" };
-  if (distance < 500) return { text: "Fire", color: "text-red-600 bg-red-50" };
+    return { text: "Found it", color: "text-white bg-heat-found", hex: "#16A34A" };
+  if (distance < 500)
+    return { text: "Fire", color: "text-white bg-heat-fire", hex: "#E0362C" };
   if (distance < 1500)
-    return { text: "Hot", color: "text-orange-600 bg-orange-50" };
+    return { text: "Hot", color: "text-white bg-heat-hot", hex: "#F2711C" };
   if (distance < 3000)
-    return { text: "Warm", color: "text-yellow-600 bg-yellow-50" };
+    return { text: "Warm", color: "text-ink bg-heat-warm", hex: "#E8A317" };
   if (distance < 6000)
-    return { text: "Chilly", color: "text-blue-400 bg-blue-50" };
+    return { text: "Chilly", color: "text-white bg-heat-chilly", hex: "#4BA3D9" };
   if (distance < 10000)
-    return { text: "Cold", color: "text-blue-600 bg-blue-100" };
-  return { text: "Freezing", color: "text-indigo-700 bg-indigo-100" };
+    return { text: "Cold", color: "text-white bg-heat-cold", hex: "#2F6BC4" };
+  return { text: "Freezing", color: "text-white bg-heat-freezing", hex: "#4B3FA8" };
 }
 
 export function getDirectionArrow(direction) {
@@ -42,6 +44,12 @@ export function formatLocationName(guess) {
 
   const fullAddress = guess.guess;
   if (!fullAddress) return "";
+
+  // Map-click guess whose place name hasn't loaded (or couldn't be found)
+  if (/^-?\d+(\.\d+)?, -?\d+(\.\d+)?$/.test(fullAddress)) {
+    return `${Number(guess.lat).toFixed(2)}, ${Number(guess.lng).toFixed(2)}`;
+  }
+
   const parts = fullAddress.split(",").map((p) => p.trim());
   if (parts.length === 0) return fullAddress;
 

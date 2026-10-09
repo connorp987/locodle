@@ -4,11 +4,16 @@
 
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
-    "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
-    sans-serif;
+  font-family: theme("fontFamily.sans");
+  color: theme("colors.ink.DEFAULT");
+  background: #fff;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+:focus-visible {
+  outline: 2px solid theme("colors.primary.500");
+  outline-offset: 2px;
 }
 
 code {
@@ -19,29 +24,37 @@ code {
 .leaflet-container {
   height: 100%;
   width: 100%;
+  font-family: inherit;
+  background: #d4e6ec;
+}
+
+/* Map chrome matched to app panels */
+.leaflet-bar {
+  border: none !important;
+  border-radius: 10px !important;
+  overflow: hidden;
+  box-shadow: theme("boxShadow.float") !important;
+}
+.leaflet-bar a {
+  color: theme("colors.ink.DEFAULT") !important;
+  border-bottom-color: #e6ebee !important;
+}
+.leaflet-popup-content-wrapper {
+  border-radius: 12px;
+  box-shadow: theme("boxShadow.float");
+}
+.leaflet-popup-content {
+  margin: 10px 14px;
+  font-size: 14px;
+}
+.leaflet-control-scale-line {
+  border-color: theme("colors.ink.soft");
+  color: theme("colors.ink.soft");
+  background: rgba(255, 255, 255, 0.75);
 }
 
 .leaflet-control-scale {
   margin-right: 32px !important;
-}
-
-/* Confirm Button and Map Control Scaling - Aggressive fluid scaling */
-.confirm-button-container {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 1000;
-  /* Use a fixed small bottom offset to keep it at the very bottom of the map area */
-  bottom: 12px !important;
-  transition: all 0.2s ease-out;
-}
-
-.confirm-button-container button {
-  white-space: nowrap;
-  /* Aggressive fluid sizing for the button */
-  padding: clamp(4px, 1vh, 12px) clamp(12px, 3vw, 32px) !important;
-  font-size: clamp(10px, 1.8vh, 18px) !important;
-  transform-origin: bottom center;
 }
 
 /* Fluid scaling for map controls */
@@ -65,9 +78,6 @@ code {
   .leaflet-control-scale {
     display: none !important;
   }
-  .confirm-button-container {
-    bottom: 5px !important;
-  }
 }
 
 /* Header adjustments for short screens */
@@ -78,9 +88,5 @@ code {
   }
   header h1 {
     font-size: 1.25rem !important;
-  }
-  header .MapPin {
-    width: 1rem !important;
-    height: 1rem !important;
   }
 }

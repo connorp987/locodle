@@ -1,15 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import {
-  X,
-  Trophy,
-  Target,
-  Flame,
-  TrendingUp,
-  Calendar,
-  MapPin,
-  ChevronRight,
-  User,
-} from "lucide-react";
+import { X, ChevronRight, User } from "lucide-react";
 import { API_BASE_URL } from "../utils/apiUtils";
 import { formatDate } from "../utils/dateUtils";
 import { getDiscordAvatarUrl } from "../utils/discordUtils";
@@ -83,41 +73,39 @@ const UserStatsModal = ({ user, isDiscord, onClose }) => {
 
   return (
     <div
-      className="fixed inset-0 z-[2000] flex items-center justify-center px-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200"
+      className="fixed inset-0 z-[2000] flex items-center justify-center px-4 bg-ink/40 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md max-h-[90vh] bg-white rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col"
+        className="w-full max-w-md max-h-[90vh] bg-white rounded-2xl shadow-float overflow-hidden flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="bg-primary-600 px-6 py-4 flex items-center justify-between shrink-0">
-          <h3 className="text-white font-bold text-lg flex items-center gap-2">
-            <Trophy className="w-5 h-5" />
-            Your Stats
-          </h3>
+        <div className="px-5 pt-5 pb-2 flex items-center justify-between shrink-0">
+          <h3 className="text-ink font-bold text-xl">Your stats</h3>
           <button
             onClick={onClose}
-            className="text-white/80 hover:text-white transition-colors"
+            aria-label="Close stats"
+            className="text-ink-faint hover:text-ink hover:bg-slate-100 rounded-full w-8 h-8 flex items-center justify-center transition-colors"
           >
-            <X className="w-6 h-6" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto flex-1">
+        <div className="px-5 pb-5 pt-2 overflow-y-auto flex-1">
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <div className="animate-pulse text-gray-500">
+              <div className="motion-safe:animate-pulse text-ink-faint">
                 Loading stats...
               </div>
             </div>
           ) : error ? (
             <div className="text-center py-12">
-              <p className="text-red-500 mb-2">Failed to load stats</p>
+              <p className="text-ink mb-2">Couldn&apos;t load your stats.</p>
               <button
                 onClick={fetchStats}
-                className="text-primary-600 hover:underline"
+                className="text-primary-600 font-semibold hover:underline"
               >
                 Try again
               </button>
@@ -125,48 +113,44 @@ const UserStatsModal = ({ user, isDiscord, onClose }) => {
           ) : stats ? (
             <div className="space-y-6">
               {/* User Profile */}
-              <div className="flex items-center gap-4 pb-4 border-b border-gray-100">
+              <div className="flex items-center gap-3">
                 {getAvatarUrl() ? (
                   <img
                     src={getAvatarUrl()}
                     alt={user?.username}
-                    className="w-14 h-14 rounded-full"
+                    className="w-12 h-12 rounded-full"
                   />
                 ) : (
-                  <div className="w-14 h-14 rounded-full bg-gray-200 flex items-center justify-center">
-                    <User className="w-7 h-7 text-gray-400" />
+                  <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center">
+                    <User className="w-6 h-6 text-ink-faint" />
                   </div>
                 )}
                 <div>
-                  <h4 className="font-bold text-lg text-gray-900">
+                  <h4 className="font-bold text-lg text-ink leading-tight">
                     {user?.username}
                   </h4>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-ink-soft">
                     {stats.stats.gamesPlayed} games played
                   </p>
                 </div>
               </div>
 
               {/* Stats Grid */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 <StatCard
-                  icon={<Trophy className="w-5 h-5 text-yellow-500" />}
-                  label="Win Rate"
+                  label="Win rate"
                   value={`${stats.stats.winRate}%`}
                 />
                 <StatCard
-                  icon={<Flame className="w-5 h-5 text-orange-500" />}
-                  label="Current Streak"
+                  label="Current streak"
                   value={stats.stats.currentStreak}
                 />
                 <StatCard
-                  icon={<Target className="w-5 h-5 text-green-500" />}
-                  label="Avg Guesses"
+                  label="Avg. guesses"
                   value={stats.stats.avgGuesses || "-"}
                 />
                 <StatCard
-                  icon={<TrendingUp className="w-5 h-5 text-blue-500" />}
-                  label="Best Game"
+                  label="Best game"
                   value={
                     stats.stats.bestGame
                       ? `${stats.stats.bestGame} guesses`
@@ -175,8 +159,7 @@ const UserStatsModal = ({ user, isDiscord, onClose }) => {
                   small
                 />
                 <StatCard
-                  icon={<MapPin className="w-5 h-5 text-red-500" />}
-                  label="Avg Distance"
+                  label="Avg. distance"
                   value={
                     stats.stats.avgDistance
                       ? `${stats.stats.avgDistance} km`
@@ -185,8 +168,7 @@ const UserStatsModal = ({ user, isDiscord, onClose }) => {
                   small
                 />
                 <StatCard
-                  icon={<Target className="w-5 h-5 text-purple-500" />}
-                  label="Total Guesses"
+                  label="Total guesses"
                   value={stats.stats.totalGuesses}
                 />
               </div>
@@ -194,33 +176,32 @@ const UserStatsModal = ({ user, isDiscord, onClose }) => {
               {/* Recent Games */}
               {stats.recentGames && stats.recentGames.length > 0 && (
                 <div>
-                  <h4 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
-                    <Calendar className="w-4 h-4" />
-                    Recent Games
+                  <h4 className="font-bold text-ink mb-2">
+                    Recent games
                   </h4>
-                  <div className="space-y-2">
+                  <div className="divide-y divide-slate-100">
                     {stats.recentGames.map((game) => (
                       <button
                         key={game.date}
                         onClick={() => fetchGameGuesses(game.date)}
-                        className="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 rounded-xl transition-colors text-left"
+                        className="w-full flex items-center justify-between py-2.5 px-2 -mx-2 hover:bg-slate-50 rounded-lg transition-colors text-left"
                       >
                         <div className="flex items-center gap-3">
                           <div
                             className={`w-2 h-2 rounded-full ${
-                              game.won ? "bg-green-500" : "bg-red-500"
+                              game.won ? "bg-heat-found" : "bg-heat-fire"
                             }`}
                           />
                           <div>
-                            <p className="font-medium text-gray-900">
+                            <p className="font-medium text-ink">
                               {formatDate(game.date)}
                             </p>
-                            <p className="text-xs text-gray-500">
-                              {game.guessCount} guesses • {game.distance} km
+                            <p className="text-xs text-ink-soft tabular-nums">
+                              {game.guessCount} guesses, {game.distance} km
                             </p>
                           </div>
                         </div>
-                        <ChevronRight className="w-4 h-4 text-gray-400" />
+                        <ChevronRight className="w-4 h-4 text-ink-faint" />
                       </button>
                     ))}
                   </div>
@@ -229,9 +210,9 @@ const UserStatsModal = ({ user, isDiscord, onClose }) => {
 
               {/* Selected Game Guesses */}
               {selectedGame && gameGuesses && (
-                <div className="mt-4 p-4 bg-gray-50 rounded-xl">
+                <div className="p-4 bg-slate-50 rounded-xl">
                   <div className="flex items-center justify-between mb-3">
-                    <h5 className="font-bold text-gray-900">
+                    <h5 className="font-bold text-ink">
                       Guesses for {formatDate(selectedGame)}
                     </h5>
                     <button
@@ -239,7 +220,7 @@ const UserStatsModal = ({ user, isDiscord, onClose }) => {
                         setSelectedGame(null);
                         setGameGuesses(null);
                       }}
-                      className="text-gray-400 hover:text-gray-600"
+                      className="text-ink-faint hover:text-ink"
                     >
                       <X className="w-4 h-4" />
                     </button>
@@ -254,12 +235,12 @@ const UserStatsModal = ({ user, isDiscord, onClose }) => {
                           <span className="w-6 h-6 rounded-full bg-primary-100 text-primary-600 flex items-center justify-center text-xs font-bold">
                             {guess.guess_number}
                           </span>
-                          <span className="text-gray-700 truncate max-w-[150px]">
+                          <span className="text-ink truncate max-w-[180px]">
                             {guess.location_name ||
                               `${guess.lat}, ${guess.lng}`}
                           </span>
                         </div>
-                        <span className="text-gray-500 font-medium">
+                        <span className="text-ink-soft font-medium tabular-nums">
                           {guess.distance} km
                         </span>
                       </div>
@@ -270,10 +251,9 @@ const UserStatsModal = ({ user, isDiscord, onClose }) => {
 
               {/* No Games Yet */}
               {stats.stats.gamesPlayed === 0 && (
-                <div className="text-center py-8 text-gray-500">
-                  <Trophy className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                  <p>No games played yet!</p>
-                  <p className="text-sm">Start playing to track your stats.</p>
+                <div className="text-center py-8 text-ink-soft">
+                  <p className="font-semibold text-ink">No games yet</p>
+                  <p className="text-sm">Finish today&apos;s place to start your stats.</p>
                 </div>
               )}
             </div>
@@ -281,10 +261,10 @@ const UserStatsModal = ({ user, isDiscord, onClose }) => {
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-100 shrink-0">
+        <div className="px-5 py-4 border-t border-slate-100 shrink-0">
           <button
             onClick={onClose}
-            className="w-full py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition-colors"
+            className="w-full h-11 bg-slate-100 hover:bg-slate-200 text-ink font-semibold rounded-xl transition-colors"
           >
             Close
           </button>
@@ -294,17 +274,16 @@ const UserStatsModal = ({ user, isDiscord, onClose }) => {
   );
 };
 
-const StatCard = ({ icon, label, value, small = false }) => (
-  <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
-    <div className="flex items-center gap-2 mb-1">
-      {icon}
-      <span className="text-xs text-gray-500 uppercase font-semibold">
-        {label}
-      </span>
-    </div>
-    <p className={`font-black text-gray-900 ${small ? "text-lg" : "text-2xl"}`}>
+const StatCard = ({ label, value, small = false }) => (
+  <div className="bg-slate-50 rounded-xl px-3 py-2.5">
+    <p
+      className={`font-extrabold text-ink tabular-nums leading-tight ${
+        small ? "text-lg" : "text-2xl"
+      }`}
+    >
       {value}
     </p>
+    <p className="text-xs text-ink-soft mt-0.5">{label}</p>
   </div>
 );
 

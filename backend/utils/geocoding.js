@@ -15,7 +15,32 @@ async function fetchWithTimeout(url, timeoutMs) {
   }
 }
 
-export async function geocodeLocation(lat, lng) {
+// Cache lookups (including in-flight ones) so the guess route and the
+// client's follow-up /api/geocode call share one upstream request.
+const GEOCODE_CACHE_MAX = 500;
+const geocodeCache = new Map();
+
+const cacheKey = (lat, lng) =>
+  `${Number(lat).toFixed(4)},${Number(lng).toFixed(4)}`;
+
+export function geocodeLocation(lat, lng) {
+  const key = cacheKey(lat, lng);
+  if (geocodeCache.has(key)) return geocodeCache.get(key);
+
+  const promise = fetchGeocode(lat, lng).then((result) => {
+    // Don't keep failures around; a later call may succeed
+    if (!result) geocodeCache.delete(key);
+    return result;
+  });
+
+  geocodeCache.set(key, promise);
+  if (geocodeCache.size > GEOCODE_CACHE_MAX) {
+    geocodeCache.delete(geocodeCache.keys().next().value);
+  }
+  return promise;
+}
+
+async function fetchGeocode(lat, lng) {
   try {
     const data = await fetchWithTimeout(
       `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1`,

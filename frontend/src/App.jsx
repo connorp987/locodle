@@ -1,5 +1,16 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { MapPin, Trophy, Info, Calendar, LogOut, X } from "lucide-react";
+import {
+  MapPin,
+  Trophy,
+  Info,
+  Calendar,
+  LogOut,
+  X,
+  Check,
+  ChevronDown,
+  Lightbulb,
+  BarChart3,
+} from "lucide-react";
 import GameMap from "./components/GameMap";
 import GuessInputOverlay from "./components/GuessInputOverlay";
 import HintsPanel from "./components/HintsPanel";
@@ -10,6 +21,40 @@ import { useDiscord } from "./contexts/DiscordContext";
 import { getEasternDateString, formatDisplayDate } from "./utils/dateUtils";
 import { API_BASE_URL } from "./utils/apiUtils";
 import { getDiscordAvatarUrl } from "./utils/discordUtils";
+
+const controlBtn =
+  "inline-flex items-center gap-1.5 h-9 px-2.5 sm:px-3 rounded-lg text-sm font-medium text-ink bg-white hover:bg-slate-100 transition-colors";
+
+// Two-option toggle for header settings
+function Segmented({ label, value, onChange, options }) {
+  return (
+    <div
+      role="radiogroup"
+      aria-label={label}
+      className="inline-flex h-9 p-0.5 rounded-lg bg-slate-100"
+    >
+      {options.map((opt) => {
+        const active = opt.value === value;
+        return (
+          <button
+            key={opt.value}
+            role="radio"
+            aria-checked={active}
+            title={opt.title}
+            onClick={() => onChange(opt.value)}
+            className={`px-2 sm:px-3 rounded-md text-sm font-medium transition-colors ${
+              active
+                ? "bg-white text-ink shadow-sm"
+                : "text-ink-faint hover:text-ink"
+            }`}
+          >
+            {opt.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 function App() {
   const [challenge, setChallenge] = useState(null);
@@ -241,6 +286,41 @@ function App() {
     });
   };
 
+  // Map-click guesses come back named by coordinates; fetch the place name
+  // separately so the guess itself isn't held up by the lookup.
+  const resolveGuessName = async (date, index, { lat, lng }) => {
+    let patch = { pendingName: false };
+    try {
+      const response = await customFetch(
+        `${API_BASE_URL}/api/geocode?lat=${lat}&lng=${lng}`
+      );
+      if (response.ok) {
+        const data = await response.json();
+        if (data.name) {
+          patch = { ...patch, guess: data.name, address: data.address || null };
+        }
+      }
+    } catch (error) {
+      console.error("Failed to look up guess name:", error);
+    }
+
+    const isSameGuess = (g) => g && g.lat === lat && g.lng === lng;
+
+    // Update saved state for that day, even if the player switched days
+    const key = `locodle-state-${date}`;
+    const saved = JSON.parse(localStorage.getItem(key) || "null");
+    if (isSameGuess(saved?.guesses?.[index])) {
+      saved.guesses[index] = { ...saved.guesses[index], ...patch };
+      localStorage.setItem(key, JSON.stringify(saved));
+    }
+
+    setGuesses((prev) =>
+      isSameGuess(prev[index])
+        ? prev.map((g, i) => (i === index ? { ...g, ...patch } : g))
+        : prev
+    );
+  };
+
   const handleGuess = async (location) => {
     // Prevent double submissions
     if (isSubmitting.current || gameCompleted) return;
@@ -271,7 +351,12 @@ function App() {
       const result = await response.json();
 
       if (response.ok) {
-        const newGuesses = [...guesses, result];
+        // Search picks come with an address; map clicks get one later
+        const guessEntry =
+          location.address && !result.address
+            ? { ...result, address: location.address }
+            : result;
+        const newGuesses = [...guesses, guessEntry];
         setGuesses(newGuesses);
         setTempMarker(null); // Clear temp marker after successful guess
 
@@ -314,6 +399,10 @@ function App() {
             answer: newAnswer,
           })
         );
+
+        if (result.pendingName) {
+          resolveGuessName(currentDate, newGuesses.length - 1, result);
+        }
       } else {
         showToast(result.error || "Failed to submit guess");
       }
@@ -373,11 +462,16 @@ function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+      <div className="min-h-screen bg-white flex items-center justify-center">
         <div className="text-center">
-          <MapPin className="w-16 h-16 text-primary-600 animate-pulse mx-auto mb-4" />
-          <p className="text-xl text-gray-700">
-            Loading today&apos;s challenge...
+          <MapPin
+            className="w-12 h-12 text-primary-600 motion-safe:animate-bounce mx-auto mb-3"
+            strokeWidth={2.5}
+            fill="currentColor"
+            stroke="white"
+          />
+          <p className="text-lg font-medium text-ink-soft">
+            Loading today&apos;s place…
           </p>
         </div>
       </div>
@@ -385,202 +479,160 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex flex-col h-[100dvh] overflow-hidden">
+    <div className="min-h-screen bg-white flex flex-col h-[100dvh] overflow-hidden">
       {/* Header */}
-      <header className="bg-white shadow-md flex-shrink-0">
-        <div className="max-w-7xl mx-auto px-4 py-0.5 sm:py-1">
-          {/* Top row: Logo + User */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 md:gap-3">
-              <MapPin className="w-4 h-4 sm:w-6 sm:h-6 md:w-8 md:h-8 text-primary-600" />
-              <h1 className="text-lg sm:text-2xl md:text-3xl font-bold text-gray-900">
+      <header className="bg-white border-b border-slate-200 flex-shrink-0 relative z-[1100]">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2 flex flex-wrap items-center gap-x-4 gap-y-2">
+          {/* Wordmark */}
+          <div className="flex items-center gap-2 mr-auto">
+            <MapPin
+              className="w-6 h-6 sm:w-7 sm:h-7 text-primary-600"
+              strokeWidth={2.5}
+              fill="currentColor"
+              stroke="white"
+            />
+            <div className="leading-none">
+              <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-ink">
                 Locodle
               </h1>
+              <p className="hidden xl:block text-xs text-ink-soft mt-1">
+                Find the famous place. Unlimited guesses.
+              </p>
             </div>
-            {/* User Avatar or Guest Sign-in - always visible on right */}
-            {user && (
-              <div className="flex items-center gap-2 md:hidden">
-                <img
-                  src={getDiscordAvatarUrl(user)}
-                  alt={user?.username}
-                  className="w-8 h-8 rounded-full"
-                />
-                {!isDiscord && (
-                  <button
-                    onClick={logout}
-                    className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                    title="Logout"
-                  >
-                    <LogOut className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-            )}
-            {isGuestMode && !user && !isDiscord && (
-              <button
-                onClick={() => {
-                  localStorage.removeItem("locodle-guest-mode");
-                  window.location.reload();
-                }}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-[#5865F2] hover:bg-[#4752C4] text-white text-sm rounded-lg transition-colors md:hidden"
-                title="Sign in with Discord"
-              >
-                <DiscordIcon className="w-4 h-4" />
-                Sign in
-              </button>
-            )}
           </div>
 
-          {/* Controls row */}
-          <div className="flex items-center gap-2 md:gap-3 flex-wrap justify-center md:justify-between">
-            {/* Game controls */}
-            <div className="flex items-center gap-2 flex-wrap justify-center">
-              {/* Date Picker */}
-              <div className="relative" ref={datePickerRef}>
-                <button
-                  onClick={() => setShowDatePicker(!showDatePicker)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 md:px-4 md:py-2 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors shadow-sm text-sm md:text-base"
-                >
-                  <Calendar className="w-4 h-4 md:w-5 md:h-5 text-primary-600" />
-                  <span className="font-medium">
-                    {formatDisplayDate(currentDate)}
-                  </span>
-                </button>
+          {/* Game controls: full-width second row on mobile */}
+          <div className="order-last md:order-none w-full md:w-auto flex items-center gap-1.5 sm:gap-2 justify-center md:justify-end flex-wrap">
+            {/* Date Picker */}
+            <div className="relative" ref={datePickerRef}>
+              <button
+                onClick={() => setShowDatePicker(!showDatePicker)}
+                aria-expanded={showDatePicker}
+                className={`${controlBtn} border border-slate-200`}
+              >
+                <Calendar className="w-4 h-4 text-primary-600" />
+                <span>{formatDisplayDate(currentDate)}</span>
+                <ChevronDown className="hidden sm:block w-3.5 h-3.5 text-ink-faint" />
+              </button>
 
-                {showDatePicker && (
-                  <>
-                    {/* Backdrop for mobile */}
-                    <div
-                      className="fixed inset-0 bg-black/20 z-[999] sm:hidden"
-                      onClick={() => setShowDatePicker(false)}
-                    />
-                    <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 sm:absolute sm:left-0 sm:top-auto sm:translate-x-0 sm:translate-y-0 sm:mt-2 w-64 bg-white rounded-xl shadow-xl border border-gray-100 z-[1000] overflow-hidden">
-                      <div className="p-3 bg-gray-50 border-b border-gray-100">
-                        <h3 className="font-semibold text-gray-700">
-                          Select Date
-                        </h3>
-                      </div>
-                      <div className="max-h-64 overflow-y-auto">
-                        {availableDates.map((date) => (
-                          <button
-                            key={date}
-                            onClick={() => {
-                              setCurrentDate(date);
-                              setShowDatePicker(false);
-                            }}
-                            className={`w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors flex items-center justify-between ${
-                              currentDate === date
-                                ? "bg-primary-50 text-primary-700 font-medium"
-                                : "text-gray-600"
-                            }`}
-                          >
-                            <span>{formatDisplayDate(date)}</span>
-                            {currentDate === date && (
-                              <div className="w-2 h-2 rounded-full bg-primary-500" />
-                            )}
-                          </button>
-                        ))}
-                      </div>
+              {showDatePicker && (
+                <>
+                  {/* Backdrop for mobile */}
+                  <div
+                    className="fixed inset-0 bg-ink/30 z-[999] sm:hidden"
+                    onClick={() => setShowDatePicker(false)}
+                  />
+                  <div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 sm:absolute sm:left-0 sm:top-auto sm:translate-x-0 sm:translate-y-0 sm:mt-2 w-64 bg-white rounded-xl shadow-float border border-slate-200 z-[1000] overflow-hidden">
+                    <p className="px-4 pt-3 pb-2 text-sm font-semibold text-ink">
+                      Play a past day
+                    </p>
+                    <div className="max-h-64 overflow-y-auto pb-1">
+                      {availableDates.map((date) => (
+                        <button
+                          key={date}
+                          onClick={() => {
+                            setCurrentDate(date);
+                            setShowDatePicker(false);
+                          }}
+                          className={`w-full text-left px-4 py-2.5 text-sm transition-colors flex items-center justify-between ${
+                            currentDate === date
+                              ? "bg-primary-50 text-primary-700 font-semibold"
+                              : "text-ink-soft hover:bg-slate-50"
+                          }`}
+                        >
+                          <span>{formatDisplayDate(date)}</span>
+                          {currentDate === date && (
+                            <Check className="w-4 h-4 text-primary-600" />
+                          )}
+                        </button>
+                      ))}
                     </div>
-                  </>
-                )}
-              </div>
-
-              <button
-                onClick={() => setUseKm(!useKm)}
-                title={`Distance in ${
-                  useKm ? "kilometers" : "miles"
-                } — tap to switch to ${useKm ? "miles" : "kilometers"}`}
-                className="px-3 py-1.5 md:px-4 md:py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm md:text-base"
-              >
-                {useKm ? "km" : "mi"}
-              </button>
-
-              <button
-                onClick={() =>
-                  setGameMode(gameMode === "hard" ? "easy" : "hard")
-                }
-                title={
-                  gameMode === "hard"
-                    ? "Hard mode: distance only. Tap for Easy (adds hints + direction arrows)."
-                    : "Easy mode: hints + direction arrows shown. Tap for Hard (distance only)."
-                }
-                className={`px-3 py-1.5 md:px-4 md:py-2 rounded-lg transition-colors font-medium text-sm md:text-base ${
-                  gameMode === "hard"
-                    ? "bg-red-100 text-red-700 hover:bg-red-200"
-                    : "bg-green-100 text-green-700 hover:bg-green-200"
-                }`}
-              >
-                {gameMode === "hard" ? "🔥 Hard" : "😊 Easy"}
-              </button>
-
-              <button
-                onClick={() => setShowHintsModal(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 md:px-4 md:py-2 bg-primary-100 text-primary-700 rounded-lg hover:bg-primary-200 transition-colors text-sm md:text-base"
-              >
-                <Info className="w-4 h-4 md:w-5 md:h-5" />
-                <span className="hidden sm:inline">View</span> Hints
-              </button>
-
-              {user && (
-                <button
-                  onClick={() => setShowStatsModal(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 md:px-4 md:py-2 bg-yellow-100 text-yellow-700 rounded-lg hover:bg-yellow-200 transition-colors text-sm md:text-base"
-                >
-                  <Trophy className="w-4 h-4 md:w-5 md:h-5" />
-                  Stats
-                </button>
+                  </div>
+                </>
               )}
             </div>
 
-            {/* Desktop user section */}
+            <Segmented
+              label="Distance unit"
+              value={useKm ? "km" : "mi"}
+              onChange={(v) => setUseKm(v === "km")}
+              options={[
+                { value: "mi", label: "mi", title: "Show distances in miles" },
+                { value: "km", label: "km", title: "Show distances in kilometers" },
+              ]}
+            />
+
+            <Segmented
+              label="Difficulty"
+              value={gameMode}
+              onChange={setGameMode}
+              options={[
+                { value: "hard", label: "Hard", title: "Distance only" },
+                { value: "easy", label: "Easy", title: "Adds hints and direction arrows" },
+              ]}
+            />
+
+          </div>
+
+          {/* Hints/Stats: icon-only in the top row on mobile */}
+          <div className="flex items-center gap-1 sm:gap-2">
+            <button
+              onClick={() => setShowHintsModal(true)}
+              aria-label="Hints"
+              className={controlBtn}
+            >
+              <Lightbulb className="w-4 h-4 text-heat-warm" />
+              <span className="hidden lg:inline">Hints</span>
+            </button>
+
             {user && (
-              <div className="hidden md:flex items-center gap-2 pl-3 border-l border-gray-200">
-                <img
-                  src={getDiscordAvatarUrl(user)}
-                  alt={user?.username}
-                  className="w-8 h-8 rounded-full"
-                />
-                <span className="text-sm font-medium text-gray-700">
-                  {user?.username}
-                </span>
-                {!isDiscord && (
-                  <button
-                    onClick={logout}
-                    className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                    title="Logout"
-                  >
-                    <LogOut className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-            )}
-            {/* Guest mode - show Discord sign-in button */}
-            {isGuestMode && !user && !isDiscord && (
-              <div className="hidden md:flex items-center gap-2 pl-3 border-l border-gray-200">
-                <button
-                  onClick={() => {
-                    localStorage.removeItem("locodle-guest-mode");
-                    window.location.reload();
-                  }}
-                  className="flex items-center gap-2 px-4 py-2 bg-[#5865F2] hover:bg-[#4752C4] text-white text-sm font-medium rounded-lg transition-colors"
-                >
-                  <svg
-                    className="w-4 h-4"
-                    viewBox="0 0 24 24"
-                    fill="currentColor"
-                  >
-                    <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z" />
-                  </svg>
-                  Sign in with Discord
-                </button>
-              </div>
+              <button
+                onClick={() => setShowStatsModal(true)}
+                aria-label="Stats"
+                className={controlBtn}
+              >
+                <BarChart3 className="w-4 h-4 text-primary-600" />
+                <span className="hidden lg:inline">Stats</span>
+              </button>
             )}
           </div>
 
-          <p className="text-gray-600 mt-2 text-sm md:text-base text-center md:text-left">
-            Guess the famous location! Unlimited tries.
-          </p>
+          {/* Account */}
+          {user && (
+            <div className="flex items-center gap-1.5 md:pl-3 md:border-l md:border-slate-200">
+              <img
+                src={getDiscordAvatarUrl(user)}
+                alt=""
+                className="w-8 h-8 rounded-full ring-2 ring-white shadow-sm"
+              />
+              <span className="hidden lg:inline text-sm font-medium text-ink">
+                {user?.username}
+              </span>
+              {!isDiscord && (
+                <button
+                  onClick={logout}
+                  className="p-2 text-ink-faint hover:text-ink hover:bg-slate-100 rounded-lg transition-colors"
+                  title="Log out"
+                  aria-label="Log out"
+                >
+                  <LogOut className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          )}
+          {isGuestMode && !user && !isDiscord && (
+            <button
+              onClick={() => {
+                localStorage.removeItem("locodle-guest-mode");
+                window.location.reload();
+              }}
+              className="flex items-center gap-2 h-9 px-3 bg-[#5865F2] hover:bg-[#4752C4] text-white text-sm font-semibold rounded-lg transition-colors"
+            >
+              <DiscordIcon className="w-4 h-4" />
+              <span className="lg:hidden">Sign in</span>
+              <span className="hidden lg:inline">Sign in with Discord</span>
+            </button>
+          )}
         </div>
       </header>
 
@@ -588,14 +640,12 @@ function App() {
         {/* Map Section - Grows to fill available space */}
         <div
           ref={mapRef}
-          className="flex-1 w-full shadow-lg relative z-0 min-h-[200px]"
+          className="flex-1 w-full relative z-0 min-h-[200px]"
         >
           <GameMap
             guesses={guesses}
             answer={answer}
             onMapClick={!gameCompleted ? handleMapClick : null}
-            onConfirm={!gameCompleted ? handleConfirmLocation : null}
-            isSubmitting={submitting}
             tempMarker={tempMarker}
             useKm={useKm}
             isDiscord={isDiscord}
@@ -618,14 +668,13 @@ function App() {
 
         {/* Floating Action Buttons */}
         {gameCompleted && (
-          <div className="absolute bottom-4 right-4 z-[1000]">
+          <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-[1000]">
             <button
               onClick={() => setShowGameOverModal(true)}
-              className="bg-white hover:bg-gray-50 text-gray-900 font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 transition-all shadow-lg border-2 border-primary-600"
-              title="View Results & Share"
+              className="bg-ink hover:bg-ink-soft text-white font-semibold h-12 px-6 rounded-full flex items-center justify-center gap-2 transition-colors shadow-float"
             >
-              <Trophy className="w-5 h-5 text-yellow-500" />
-              <span className="hidden sm:inline">Results</span>
+              <Trophy className="w-5 h-5 text-heat-warm" />
+              See results
             </button>
           </div>
         )}
@@ -643,22 +692,33 @@ function App() {
 
       {/* Hints Modal */}
       {showHintsModal && challenge?.hints && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[2000] p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between rounded-t-2xl">
-              <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                <Info className="w-6 h-6 text-primary-600" />
+        <div
+          className="fixed inset-0 bg-ink/40 backdrop-blur-sm flex items-center justify-center z-[2000] p-4"
+          onClick={() => setShowHintsModal(false)}
+        >
+          <div
+            role="dialog"
+            aria-labelledby="hints-title"
+            className="bg-white rounded-2xl shadow-float max-w-md w-full max-h-[80vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-5 pt-5 pb-3">
+              <h2
+                id="hints-title"
+                className="text-xl font-bold text-ink flex items-center gap-2"
+              >
+                <Lightbulb className="w-5 h-5 text-heat-warm" />
                 Hints
               </h2>
               <button
                 onClick={() => setShowHintsModal(false)}
                 aria-label="Close hints"
-                className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full w-8 h-8 flex items-center justify-center transition-colors"
+                className="text-ink-faint hover:text-ink hover:bg-slate-100 rounded-full w-8 h-8 flex items-center justify-center transition-colors"
               >
-                <X className="w-6 h-6" />
+                <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="p-6">
+            <div className="px-5 pb-5">
               <HintsPanel hints={challenge.hints} />
             </div>
           </div>
@@ -670,9 +730,9 @@ function App() {
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[4000] px-4 w-full max-w-sm">
           <div
             role="alert"
-            className="flex items-start gap-2 bg-red-600 text-white px-4 py-3 rounded-xl shadow-2xl"
+            className="flex items-start gap-2 bg-ink text-white px-4 py-3 rounded-xl shadow-float border-l-4 border-heat-fire"
           >
-            <Info className="w-5 h-5 flex-shrink-0 mt-0.5" />
+            <Info className="w-5 h-5 flex-shrink-0 mt-0.5 text-heat-fire" />
             <p className="text-sm font-medium flex-1">{toast}</p>
             <button
               onClick={() => setToast(null)}

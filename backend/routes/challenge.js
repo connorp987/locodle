@@ -14,6 +14,9 @@ import {
 
 const locationCache = new Map();
 
+// Map-click guesses arrive named by their coordinates ("48.8566, 2.3522")
+const COORDINATE_NAME = /^-?\d+(\.\d+)?, -?\d+(\.\d+)?$/;
+
 async function getDailyLocation(date = null) {
   const targetDate = date || getEasternDateString();
 
@@ -53,6 +56,25 @@ export default async function challengeRoutes(fastify) {
     }
   });
 
+  fastify.get("/api/geocode", async (request, reply) => {
+    const lat = Number(request.query.lat);
+    const lng = Number(request.query.lng);
+    if (
+      !Number.isFinite(lat) ||
+      !Number.isFinite(lng) ||
+      Math.abs(lat) > 90 ||
+      Math.abs(lng) > 180
+    ) {
+      return reply.code(400).send({ error: "Invalid lat/lng" });
+    }
+
+    const result = await geocodeLocation(lat, lng);
+    if (!result) {
+      return reply.code(502).send({ error: "Couldn't look up this place" });
+    }
+    return result;
+  });
+
   fastify.post("/api/guess", async (request, reply) => {
     const { guess, date } = request.body;
 
@@ -61,10 +83,16 @@ export default async function challengeRoutes(fastify) {
     }
 
     try {
-      const [dailyLocation, nominatimResult] = await Promise.all([
-        getDailyLocation(date),
-        geocodeLocation(guess.lat, guess.lng),
-      ]);
+      // Reverse geocoding is slow (often 0.3-1.5s), so it runs in the
+      // background: the guess is scored and returned right away, the client
+      // fetches the name from /api/geocode, and the saved row is renamed
+      // once the lookup finishes. Search guesses already have a name.
+      const needsName = !guess.name || COORDINATE_NAME.test(guess.name);
+      const namePromise = needsName
+        ? geocodeLocation(guess.lat, guess.lng)
+        : null;
+
+      const dailyLocation = await getDailyLocation(date);
 
       if (!dailyLocation) {
         return reply
@@ -72,12 +100,7 @@ export default async function challengeRoutes(fastify) {
           .send({ error: "No challenge found for this date" });
       }
 
-      let guessName = guess.name;
-      let guessAddress = null;
-      if (nominatimResult) {
-        if (nominatimResult.name) guessName = nominatimResult.name;
-        if (nominatimResult.address) guessAddress = nominatimResult.address;
-      }
+      const guessName = guess.name;
 
       const distance = calculateDistance(
         guess.lat,
@@ -105,7 +128,8 @@ export default async function challengeRoutes(fastify) {
         bearing: Math.round(bearing),
         direction: direction,
         timestamp: new Date().toISOString(),
-        address: guessAddress,
+        address: null,
+        pendingName: needsName,
       };
 
       const won = distance < 50;
@@ -145,9 +169,10 @@ export default async function challengeRoutes(fastify) {
 
           const currentGameMode = request.body.gameMode || "hard";
 
-          await pool.query(
+          const inserted = await pool.query(
             `INSERT INTO user_guesses (user_id, date, guess_number, lat, lng, location_name, distance, score, direction, game_mode)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+             RETURNING id`,
             [
               discord_user_id,
               gameDate,
@@ -161,6 +186,21 @@ export default async function challengeRoutes(fastify) {
               currentGameMode,
             ]
           );
+
+          if (namePromise) {
+            const guessId = inserted.rows[0].id;
+            namePromise
+              .then((result) => {
+                if (!result?.name) return;
+                return pool.query(
+                  "UPDATE user_guesses SET location_name = $1 WHERE id = $2",
+                  [result.name, guessId]
+                );
+              })
+              .catch((err) =>
+                fastify.log.error(err, "Failed to save geocoded guess name")
+              );
+          }
 
           if (won) {
             try {
@@ -190,19 +230,27 @@ export default async function challengeRoutes(fastify) {
                 ]
               );
 
+              // Discord posts don't affect the response; don't make the
+              // player wait on them
               if (guild_id) {
-                const channels = await getRegisteredChannelsForGuild(guild_id);
-                for (const channelId of channels) {
-                  await postOrUpdateCompletionMessage(
-                    channelId,
-                    guild_id,
-                    discord_user_id,
-                    username,
-                    request.body.guessCount || 1,
-                    true,
-                    gameDate
+                (async () => {
+                  const channels = await getRegisteredChannelsForGuild(
+                    guild_id
                   );
-                }
+                  for (const channelId of channels) {
+                    await postOrUpdateCompletionMessage(
+                      channelId,
+                      guild_id,
+                      discord_user_id,
+                      username,
+                      request.body.guessCount || 1,
+                      true,
+                      gameDate
+                    );
+                  }
+                })().catch((err) =>
+                  fastify.log.error(err, "Failed to post completion message")
+                );
               }
             } catch (dbError) {
               fastify.log.error(

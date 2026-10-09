@@ -24,7 +24,7 @@ const GuessInput = ({
     try {
       // Using Nominatim API for geocoding
       const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(
+        `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&q=${encodeURIComponent(
           query
         )}&limit=5`
       );
@@ -71,6 +71,7 @@ const GuessInput = ({
       name: location.display_name,
       lat: parseFloat(location.lat),
       lng: parseFloat(location.lon),
+      address: location.address,
     });
     setInput("");
     setSuggestions([]);
@@ -109,10 +110,10 @@ const GuessInput = ({
   };
 
   return (
-    <div className="relative bg-white rounded-lg shadow-lg p-2 max-w-md mx-auto">
+    <div className="relative bg-white rounded-2xl shadow-float p-1.5 max-w-lg mx-auto">
       <div className="relative">
-        <div className="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
-          <Search className="h-4 w-4 text-gray-400" />
+        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          <Search className="h-5 w-5 text-ink-faint" />
         </div>
 
         <input
@@ -122,26 +123,32 @@ const GuessInput = ({
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
           disabled={disabled || isSubmitting}
-          placeholder="Search or click map..."
-          className="block w-full pl-8 pr-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+          placeholder="Search a place, or tap the map"
+          aria-label="Search for a place to guess"
+          className="block w-full h-11 pl-10 pr-3 text-base text-ink placeholder:text-ink-faint bg-slate-50 rounded-xl border border-transparent focus:outline-none focus:bg-white focus:border-primary-400 focus:ring-2 focus:ring-primary-100 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
         />
       </div>
 
       {/* Suggestions dropdown — opens upward (input sits at screen bottom) */}
       {suggestions.length > 0 && (
-        <div className="absolute left-2 right-2 bottom-full mb-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-40 overflow-y-auto">
+        <div className="absolute left-0 right-0 bottom-full mb-2 bg-white rounded-xl shadow-float max-h-56 overflow-y-auto py-1">
           {suggestions.map((location, index) => (
             <button
               key={index}
               onClick={() => handleSelectLocation(location)}
-              className="w-full text-left px-2 py-1.5 hover:bg-primary-50 flex items-start gap-1.5 border-b border-gray-100 last:border-b-0 transition-colors"
+              className={`w-full text-left px-3 py-2 hover:bg-primary-50 flex items-start gap-2 transition-colors ${
+                index === 0 ? "bg-slate-50" : ""
+              }`}
             >
-              <MapPin className="w-3.5 h-3.5 text-primary-600 flex-shrink-0 mt-0.5" />
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-medium text-gray-900 truncate">
-                  {location.display_name}
-                </p>
-              </div>
+              <MapPin className="w-4 h-4 text-primary-600 flex-shrink-0 mt-0.5" />
+              <p className="flex-1 min-w-0 text-sm text-ink truncate">
+                {location.display_name}
+              </p>
+              {index === 0 && (
+                <kbd className="hidden sm:inline text-[11px] text-ink-faint border border-slate-200 rounded px-1.5 py-0.5 flex-shrink-0">
+                  Enter
+                </kbd>
+              )}
             </button>
           ))}
         </div>
@@ -149,36 +156,27 @@ const GuessInput = ({
 
       {/* Map-based guess confirmation */}
       {tempMarker && (
-        <div className="mt-2 relative rounded-lg overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-400 rounded-lg animate-pulse"></div>
-          <div className="relative p-2 flex justify-between items-center">
-            <div className="flex items-center gap-1.5 text-green-800">
-              <MapPin className="w-3.5 h-3.5 animate-bounce" />
-              <p className="text-xs font-semibold">
-                {tempMarker.lat.toFixed(3)}, {tempMarker.lng.toFixed(3)}
-              </p>
-            </div>
-            <div className="flex gap-1.5">
-              <button
-                onClick={handleConfirmMapGuess}
-                disabled={isSubmitting}
-                className={`py-2 px-3 rounded-lg transition-all font-bold text-sm shadow-lg transform disabled:cursor-not-allowed disabled:transform-none ${
-                  isSubmitting
-                    ? "bg-gray-400 text-gray-100 cursor-wait"
-                    : "bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:from-green-700 hover:to-emerald-700 hover:shadow-xl hover:scale-105"
-                }`}
-              >
-                {isSubmitting ? "⏳ Submitting..." : "✓ Confirm"}
-              </button>
-              <button
-                onClick={onClearMarker}
-                disabled={isSubmitting}
-                className="px-2 text-xs text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded transition-colors disabled:opacity-50"
-              >
-                Clear
-              </button>
-            </div>
+        <div className="mt-1.5 flex items-center gap-2 pl-3">
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-ink">Pin dropped</p>
+            <p className="text-xs text-ink-soft tabular-nums">
+              {tempMarker.lat.toFixed(3)}, {tempMarker.lng.toFixed(3)}
+            </p>
           </div>
+          <button
+            onClick={onClearMarker}
+            disabled={isSubmitting}
+            className="h-10 px-3 text-sm font-medium text-ink-soft hover:text-ink hover:bg-slate-100 rounded-xl transition-colors disabled:opacity-50"
+          >
+            Clear
+          </button>
+          <button
+            onClick={handleConfirmMapGuess}
+            disabled={isSubmitting}
+            className="h-10 px-4 rounded-xl text-sm font-semibold text-white bg-ink hover:bg-ink-soft transition-colors disabled:opacity-60 disabled:cursor-wait"
+          >
+            {isSubmitting ? "Guessing…" : "Guess here"}
+          </button>
         </div>
       )}
     </div>

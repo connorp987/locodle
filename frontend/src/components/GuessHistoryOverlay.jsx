@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { TrendingDown, ChevronUp, ChevronDown, History } from "lucide-react";
+import { ChevronUp, ChevronDown } from "lucide-react";
 import { convertDistance, getDistanceUnit } from "../utils/distanceUtils";
 import {
   getTemperatureLabel,
@@ -33,86 +33,82 @@ const GuessHistoryOverlay = ({
     return (
       <button
         onClick={() => onToggleExpand(true)}
-        className="absolute top-4 right-4 z-[400] bg-white/90 backdrop-blur-md shadow-lg px-4 py-2 rounded-full flex items-center gap-2 text-sm font-bold text-gray-700 hover:bg-white transition-colors"
+        aria-expanded={false}
+        className="absolute top-3 right-3 z-[400] bg-white shadow-float h-9 pl-3 pr-2 rounded-full flex items-center gap-2 text-sm font-semibold text-ink hover:bg-slate-50 transition-colors"
       >
-        <History className="w-4 h-4" />
-        <span className="hidden xs:inline">History</span>
-        <span className="bg-primary-100 text-primary-700 px-2 py-0.5 rounded-full text-xs">
+        Guesses
+        <span className="bg-slate-100 text-ink px-2 py-0.5 rounded-full text-xs tabular-nums">
           {guesses.length}
         </span>
-        <ChevronDown className="w-4 h-4" />
+        <ChevronDown className="w-4 h-4 text-ink-faint" />
       </button>
     );
   }
 
   return (
-    <div className="absolute top-2 right-2 xs:top-4 xs:right-4 w-56 xs:w-64 sm:w-80 z-[400] flex flex-col gap-2">
-      {/* Minimize Button */}
+    <div className="absolute top-2 right-2 sm:top-3 sm:right-3 w-48 sm:w-72 z-[400] bg-white/95 backdrop-blur rounded-xl sm:rounded-2xl shadow-float overflow-hidden">
       <button
         onClick={() => onToggleExpand(false)}
-        className="absolute -top-2 -right-1 z-50 bg-white shadow-md border border-gray-100 p-1 rounded-full text-gray-600 hover:bg-gray-50 sm:p-1.5 sm:-top-3"
+        aria-expanded={true}
+        className="w-full flex items-center justify-between px-2.5 sm:px-3 py-1 sm:py-2 text-xs sm:text-sm font-semibold text-ink hover:bg-slate-50 transition-colors"
       >
-        <ChevronUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+        <span>
+          Guesses{" "}
+          <span className="text-ink-faint font-medium tabular-nums">
+            {guesses.length}
+          </span>
+        </span>
+        <ChevronUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-ink-faint" />
       </button>
 
-      <div
+      <ol
         ref={scrollRef}
-        className="flex flex-col gap-2 overflow-y-auto max-h-[220px] xs:max-h-[220px] sm:max-h-[220px] pr-1"
+        className="overflow-y-auto max-h-[92px] sm:max-h-[240px] border-t border-slate-100 divide-y divide-slate-100"
       >
         {[...guesses].reverse().map((guess, index) => {
           const temperature = getTemperatureLabel(guess.distance);
-          // Calculate actual index for numbering (reverse)
-          const actualIndex = guesses.length - index;
+          const guessNumber = guesses.length - index;
 
           return (
-            <div
-              key={index}
-              className="border border-gray-200/50 rounded-lg p-2 sm:p-3 shadow-sm bg-white/90 backdrop-blur-sm hover:bg-white transition-colors shrink-0"
-            >
-              <div className="flex items-start justify-between mb-0.5 sm:mb-1">
-                <div className="flex items-center gap-1.5 sm:gap-2 flex-1 min-w-0">
-                  <span className="flex items-center justify-center w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-primary-600 text-white text-[10px] sm:text-xs font-bold flex-shrink-0">
-                    {actualIndex}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium text-gray-900 text-[10px] sm:text-xs truncate">
-                      {formatLocationName(guess)}
-                    </p>
-                    {guess.score !== undefined && (
-                      <p className="text-xs font-bold text-primary-600">
-                        {guess.score}
-                      </p>
-                    )}
-                  </div>
-                </div>
-                <span
-                  className={`text-xs font-bold px-2 py-0.5 rounded whitespace-nowrap ml-2 ${temperature.color}`}
-                >
-                  {temperature.text}
-                </span>
-              </div>
-
-              <div className="flex items-center gap-1 text-xs text-gray-600">
-                <TrendingDown className="w-3 h-3" />
-                <span>
+            <li key={guessNumber} className="flex items-center gap-2 sm:gap-2.5 px-2.5 sm:px-3 py-1 sm:py-2">
+              <span
+                className={`flex items-center justify-center min-w-[1.25rem] h-5 sm:min-w-[1.5rem] sm:h-6 px-1 rounded-full text-[10px] sm:text-xs font-bold tabular-nums flex-shrink-0 ${temperature.color}`}
+                title={temperature.text}
+              >
+                {guessNumber}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs sm:text-sm font-medium text-ink truncate leading-tight">
+                  {formatLocationName(guess)}
+                </p>
+                <p className="text-[10px] sm:text-xs text-ink-soft tabular-nums leading-tight">
                   {convertDistance(guess.distance, useKm).toLocaleString()}{" "}
                   {distanceUnit}
-                </span>
-                {guess.direction &&
-                  guess.distance >= 50 &&
-                  gameMode === "easy" && (
-                    <span
-                      className="ml-1 font-bold text-gray-700"
-                      title={`Direction: ${guess.direction}`}
-                    >
-                      {guess.direction} {getDirectionArrow(guess.direction)}
-                    </span>
-                  )}
+                  <span className="text-ink-faint"> · {temperature.text}</span>
+                  {guess.direction &&
+                    guess.distance >= 50 &&
+                    gameMode === "easy" && (
+                      <span
+                        className="ml-1.5 font-semibold text-ink"
+                        title={`Direction: ${guess.direction}`}
+                      >
+                        {guess.direction} {getDirectionArrow(guess.direction)}
+                      </span>
+                    )}
+                </p>
               </div>
-            </div>
+              {guess.score !== undefined && (
+                <span
+                  className="text-[11px] sm:text-sm font-semibold text-ink-soft sm:text-ink tabular-nums flex-shrink-0"
+                  title="Proximity score (100 = on target)"
+                >
+                  {guess.score}
+                </span>
+              )}
+            </li>
           );
         })}
-      </div>
+      </ol>
     </div>
   );
 };

@@ -1,4 +1,5 @@
-import { X, Trophy, Target, Share2, Calendar } from "lucide-react";
+import { X, Share2 } from "lucide-react";
+import { getTemperatureLabel } from "../utils/gameUtils";
 
 const GameOverModal = ({
   isOpen,
@@ -11,81 +12,82 @@ const GameOverModal = ({
 }) => {
   if (!isOpen) return null;
 
+  const guessWord = guesses.length === 1 ? "guess" : "guesses";
+
   return (
     <div
-      className="fixed inset-0 z-[3000] flex items-center justify-center px-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300"
+      className="fixed inset-0 z-[3000] flex items-center justify-center px-4 bg-ink/50 backdrop-blur-sm"
       onClick={onClose}
     >
       <div
-        className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300"
+        role="dialog"
+        aria-labelledby="result-title"
+        className="relative w-full max-w-sm bg-white rounded-3xl shadow-float overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Close button */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-all z-10"
+          aria-label="Close results"
+          className="absolute top-3 right-3 p-2 text-ink-faint hover:text-ink hover:bg-slate-100 rounded-full transition-colors"
         >
-          <X className="w-6 h-6" />
+          <X className="w-5 h-5" />
         </button>
 
-        <div className="p-8 text-center">
-          {gameWon ? (
-            <div className="space-y-4">
-              <div className="relative inline-block">
-                <div className="absolute inset-0 bg-yellow-400 blur-2xl opacity-20 animate-pulse"></div>
-                <Trophy className="relative w-20 h-20 text-yellow-500 mx-auto" />
-              </div>
-              <h2 className="text-3xl font-black text-gray-900">
-                Congratulations! 🎉
-              </h2>
-              <div className="bg-green-50 text-green-700 rounded-2xl p-4 border border-green-100">
-                <p className="text-lg">
-                  You found <span className="font-bold">{answer?.name}</span>,{" "}
-                  {answer?.country}
-                </p>
-                <p className="text-sm font-semibold mt-1">
-                  In {guesses.length}{" "}
-                  {guesses.length === 1 ? "guess" : "guesses"}!
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              <Target className="w-20 h-20 text-red-500 mx-auto" />
-              <h2 className="text-3xl font-black text-gray-900">Game Over</h2>
-              <div className="bg-red-50 text-red-700 rounded-2xl p-4 border border-red-100">
-                <p className="text-lg">
-                  The answer was{" "}
-                  <span className="font-bold">{answer?.name}</span>
-                </p>
-                <p className="text-sm font-semibold mt-1">{answer?.country}</p>
-              </div>
+        <div className="px-6 pt-8 pb-6">
+          <p
+            className={`text-sm font-semibold ${
+              gameWon ? "text-heat-found" : "text-heat-fire"
+            }`}
+          >
+            {gameWon
+              ? `Found in ${guesses.length} ${guessWord}`
+              : "Not this time. The answer was"}
+          </p>
+          <h2
+            id="result-title"
+            className="mt-1 text-3xl font-extrabold tracking-tight text-ink leading-tight"
+          >
+            {answer?.name}
+          </h2>
+          <p className="text-ink-soft">{answer?.country}</p>
+
+          {/* One square per guess, colored by how close it was */}
+          {guesses.length > 0 && (
+            <div className="mt-5 flex flex-wrap gap-1">
+              {guesses.map((guess, index) => {
+                const temperature = getTemperatureLabel(guess.distance);
+                return (
+                  <span
+                    key={index}
+                    title={`Guess ${index + 1}: ${temperature.text}`}
+                    className="w-5 h-5 rounded"
+                    style={{ backgroundColor: temperature.hex }}
+                  />
+                );
+              })}
             </div>
           )}
 
-          <div className="mt-8 space-y-4">
-            <div className="flex items-center justify-center gap-2 text-gray-500 font-medium">
-              <Calendar className="w-4 h-4" />
-              <span>Come back tomorrow for a new challenge!</span>
-            </div>
+          <p className="mt-5 text-sm text-ink-soft">
+            A new place every day. Come back tomorrow.
+          </p>
 
-            {isDiscord ? (
-              <button
-                onClick={onShareAndExit}
-                className="w-full bg-primary-600 hover:bg-primary-700 text-white font-bold py-4 px-6 rounded-2xl flex items-center justify-center gap-3 transition-all shadow-xl shadow-primary-600/20 transform hover:scale-[1.02] active:scale-[0.98]"
-              >
-                <Share2 className="w-6 h-6" />
-                <span className="text-lg">Share Results & Exit</span>
-              </button>
-            ) : (
-              <button
-                onClick={onClose}
-                className="w-full bg-gray-900 hover:bg-black text-white font-bold py-4 px-6 rounded-2xl transition-all shadow-xl transform hover:scale-[1.02] active:scale-[0.98]"
-              >
-                Close Results
-              </button>
-            )}
-          </div>
+          {isDiscord ? (
+            <button
+              onClick={onShareAndExit}
+              className="mt-4 w-full h-12 bg-ink hover:bg-ink-soft text-white font-semibold rounded-xl flex items-center justify-center gap-2 transition-colors"
+            >
+              <Share2 className="w-5 h-5" />
+              Share results and exit
+            </button>
+          ) : (
+            <button
+              onClick={onClose}
+              className="mt-4 w-full h-12 bg-ink hover:bg-ink-soft text-white font-semibold rounded-xl transition-colors"
+            >
+              Back to map
+            </button>
+          )}
         </div>
       </div>
     </div>

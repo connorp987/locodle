@@ -14,10 +14,11 @@ import GuessHistoryOverlay from "./GuessHistoryOverlay";
 import { convertDistance, getDistanceUnit } from "../utils/distanceUtils";
 import {
   createNumberedMarkerIcon,
-  createOrangeMarkerIcon,
-  createGoldMarkerIcon,
+  createPendingMarkerIcon,
+  createAnswerMarkerIcon,
   tileProviders,
 } from "../utils/mapUtils";
+import { getTemperatureLabel, formatLocationName } from "../utils/gameUtils";
 
 import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
 import markerIcon from "leaflet/dist/images/marker-icon.png";
@@ -38,13 +39,13 @@ const MapClickHandler = ({ onMapClick, tempMarker }) => {
     },
   });
 
-  const orangeIcon = createOrangeMarkerIcon();
+  const pendingIcon = createPendingMarkerIcon();
 
   return tempMarker ? (
     <Marker
       position={[tempMarker.lat, tempMarker.lng]}
       draggable={true}
-      icon={orangeIcon}
+      icon={pendingIcon}
       eventHandlers={{
         dragend(e) {
           const marker = e.target;
@@ -52,16 +53,7 @@ const MapClickHandler = ({ onMapClick, tempMarker }) => {
           onMapClick(position);
         },
       }}
-    >
-      <Popup>
-        <div className="text-center p-2">
-          <p className="font-bold text-orange-600">📍 Selected Location</p>
-          <p className="text-xs text-gray-600 mt-1">
-            Click &quot;Confirm Location&quot; below
-          </p>
-        </div>
-      </Popup>
-    </Marker>
+    />
   ) : null;
 };
 
@@ -70,8 +62,6 @@ const GameMap = ({
   answer,
   onMapClick,
   tempMarker,
-  onConfirm,
-  isSubmitting,
   useKm = true,
   isDiscord = false,
   gameMode = "hard",
@@ -137,14 +127,16 @@ const GameMap = ({
           <MapClickHandler
             onMapClick={onMapClick}
             tempMarker={tempMarker}
-            onConfirm={onConfirm}
           />
         )}
 
         {/* Render guess markers with numbers */}
         {guesses.map((guess, index) => {
           const guessNumber = index + 1;
-          const numberedIcon = createNumberedMarkerIcon(guessNumber);
+          const numberedIcon = createNumberedMarkerIcon(
+            guessNumber,
+            getTemperatureLabel(guess.distance).hex
+          );
 
           return (
             <Marker
@@ -153,13 +145,14 @@ const GameMap = ({
               icon={numberedIcon}
             >
               <Popup>
-                <div className="text-center">
-                  <p className="font-bold">{guess.guess}</p>
-                  <p className="text-sm text-gray-600">Guess #{guessNumber}</p>
-                  <p className="text-sm">
-                    Distance:{" "}
+                <div className="min-w-[140px]">
+                  <p className="text-xs text-ink-faint">Guess {guessNumber}</p>
+                  <p className="font-semibold text-ink leading-snug">
+                    {formatLocationName(guess)}
+                  </p>
+                  <p className="text-sm text-ink-soft tabular-nums mt-0.5">
                     {convertDistance(guess.distance, useKm).toLocaleString()}{" "}
-                    {distanceUnit}
+                    {distanceUnit} away
                   </p>
                 </div>
               </Popup>
@@ -171,13 +164,18 @@ const GameMap = ({
         {answer && (
           <Marker
             position={[answer.lat, answer.lng]}
-            icon={createGoldMarkerIcon()}
+            icon={createAnswerMarkerIcon()}
+            zIndexOffset={1000}
           >
             <Popup>
-              <div className="text-center">
-                <p className="font-bold text-green-600">✓ Correct Answer</p>
-                <p className="font-semibold">{answer.name}</p>
-                <p className="text-sm text-gray-600">{answer.country}</p>
+              <div className="min-w-[140px]">
+                <p className="text-xs font-semibold text-heat-found">
+                  The answer
+                </p>
+                <p className="font-semibold text-ink leading-snug">
+                  {answer.name}
+                </p>
+                <p className="text-sm text-ink-soft">{answer.country}</p>
               </div>
             </Popup>
           </Marker>
@@ -193,44 +191,15 @@ const GameMap = ({
                 [answer.lat, answer.lng],
               ]}
               pathOptions={{
-                color: "blue",
+                color: getTemperatureLabel(guess.distance).hex,
                 weight: 2,
-                opacity: 0.5,
-                dashArray: "5, 10",
+                opacity: 0.7,
+                dashArray: "2, 6",
+                lineCap: "round",
               }}
             />
           ))}
       </MapContainer>
-
-      {/* Floating Confirm Button */}
-      {tempMarker && onConfirm && (
-        <div className="confirm-button-container absolute left-1/2 transform -translate-x-1/2 z-[1000]">
-          <button
-            onClick={() => onConfirm(tempMarker)}
-            disabled={isSubmitting}
-            className={`
-              font-bold rounded-full shadow-xl transform transition-all flex items-center gap-2 border-2 border-white backdrop-blur-sm
-              ${
-                isSubmitting
-                  ? "bg-gray-500/90 cursor-not-allowed opacity-80"
-                  : "bg-green-600/90 hover:bg-green-700 hover:scale-105 text-white"
-              }
-            `}
-          >
-            {isSubmitting ? (
-              <>
-                <span className="animate-spin text-sm sm:text-base">⏳</span>
-                <span>Confirming...</span>
-              </>
-            ) : (
-              <>
-                <span className="text-sm sm:text-base">📍</span>
-                <span>Confirm Location</span>
-              </>
-            )}
-          </button>
-        </div>
-      )}
 
       {/* Guess History Overlay */}
       <GuessHistoryOverlay

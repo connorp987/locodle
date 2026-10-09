@@ -1,6 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App.jsx";
+import "@fontsource-variable/schibsted-grotesk";
 import "./index.css";
 
 import DiscordActivityWrapper from "./components/DiscordActivityWrapper";
