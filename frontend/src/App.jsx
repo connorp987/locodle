@@ -479,7 +479,7 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-white flex flex-col h-[100dvh] overflow-hidden">
+    <div className="bg-white flex flex-col h-[100dvh] overflow-hidden">
       {/* Header */}
       <header className="bg-white border-b border-slate-200 flex-shrink-0 relative z-[1100]">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2 flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -668,7 +668,7 @@ function App() {
 
         {/* Floating Action Buttons */}
         {gameCompleted && (
-          <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-[1000]">
+          <div className="absolute bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-[1000]">
             <button
               onClick={() => setShowGameOverModal(true)}
               className="bg-ink hover:bg-ink-soft text-white font-semibold h-12 px-6 rounded-full flex items-center justify-center gap-2 transition-colors shadow-float"

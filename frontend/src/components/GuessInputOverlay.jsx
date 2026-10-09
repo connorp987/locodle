@@ -12,7 +12,7 @@ const GuessInputOverlay = ({
   if (gameCompleted) return null;
 
   return (
-    <div className="absolute bottom-3 sm:bottom-5 left-1/2 -translate-x-1/2 w-[calc(100%-1.5rem)] max-w-lg z-[1000]">
+    <div className="absolute bottom-[max(0.75rem,env(safe-area-inset-bottom))] sm:bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 w-[calc(100%-1.5rem)] max-w-lg z-[1000]">
       <GuessInput
         onGuess={onGuess}
         onConfirm={onConfirm}
