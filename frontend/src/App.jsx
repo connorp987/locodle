@@ -173,6 +173,8 @@ function App() {
       setAnswer(null);
     }
     setTempMarker(null);
+    // Drop previous date's hints while the new challenge loads
+    setChallenge(null);
 
     loadDailyChallenge().finally(() => {
       setLoading(false);
@@ -433,7 +435,7 @@ function App() {
   // Auto-scroll to map when in Discord
   useEffect(() => {
     if (isDiscord && !loading && mapRef.current) {
-      // Small delay to ensure layout is stable after loading screen removal
+      // Small delay to ensure layout is stable once the challenge has loaded
       setTimeout(() => {
         mapRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
       }, 500);
@@ -460,24 +462,8 @@ function App() {
     };
   }, [showDatePicker]);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-center">
-          <MapPin
-            className="w-12 h-12 text-primary-600 motion-safe:animate-bounce mx-auto mb-3"
-            strokeWidth={2.5}
-            fill="currentColor"
-            stroke="white"
-          />
-          <p className="text-lg font-medium text-ink-soft">
-            Loading today&apos;s place…
-          </p>
-        </div>
-      </div>
-    );
-  }
-
+  // No loading screen: the map renders immediately (it's the LCP element) and
+  // the challenge only supplies hints, which appear once it arrives.
   return (
     <div className="bg-white flex flex-col h-[100dvh] overflow-hidden">
       {/* Header */}

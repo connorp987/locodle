@@ -1,0 +1,63 @@
+# Custom Caddyfile for Railpack (replaces its default Node SPA Caddyfile).
+# Based on https://github.com/railwayapp/railpack/blob/main/core/providers/node/Caddyfile.template
+# Railpack still renders this as a Go template, so {{.DIST_DIR}} / {{.IndexFallback}} are filled in.
+# Only change from the default: Cache-Control headers.
+
+# global options
+{
+	admin off
+	persist_config off
+	auto_https off
+
+	log {
+		format json
+	}
+
+	servers {
+		trusted_proxies static private_ranges 100.0.0.0/8 # trust railway's proxy
+	}
+}
+
+# site block, listens on the $PORT environment variable, automatically assigned by railway
+:{$PORT:80} {
+	log {
+		format json
+	}
+
+	respond /health 200
+
+	# Security headers
+	header {
+		# Prevent some browsers from MIME-sniffing a response away from the declared Content-Type
+		X-Content-Type-Options "nosniff"
+		# Remove Server header
+		-Server
+	}
+
+	# Vite's hashed build output never changes for a given filename: cache for a year
+	@hashed path /assets/*
+	header @hashed Cache-Control "public, max-age=31536000, immutable"
+
+	# Everything else (index.html, SPA routes, favicons) revalidates via ETag on each
+	# visit, so new deploys are picked up immediately
+	@unhashed not path /assets/*
+	header @unhashed Cache-Control "no-cache"
+
+	# serve from the 'dist' folder (Vite builds into the 'dist' folder)
+	root * {{.DIST_DIR}}
+
+	# Handle static files
+	file_server {
+		hide .git
+		hide .env*
+	}
+
+	# Compression with more formats
+	encode {
+		gzip
+		zstd
+	}
+
+	# match against direct against HTML file matches, folder-level index.html, and optionally fallback to root index.html
+	try_files {path} {path}.html {path}/index.html{{if .IndexFallback}} /index.html{{end}}
+}

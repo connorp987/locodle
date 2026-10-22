@@ -1,5 +1,4 @@
 import { useEffect, useState, useCallback } from "react";
-import { DiscordSDK } from "@discord/embedded-app-sdk";
 import { DiscordContext } from "../contexts/DiscordContext";
 import { API_BASE_URL } from "../utils/apiUtils";
 import DiscordIcon from "./DiscordIcon";
@@ -169,12 +168,14 @@ const DiscordActivityWrapper = ({ children }) => {
     setIsDiscord(hasFrameId);
 
     if (hasFrameId) {
-      // Discord Activity Flow - only initialize SDK if frame_id exists
-      const sdk = new DiscordSDK(DISCORD_CLIENT_ID);
-      setDiscordSdk(sdk);
-
+      // Discord Activity Flow - only initialize SDK if frame_id exists.
+      // SDK is loaded on demand so web visitors don't download it.
       const setupDiscordSdk = async () => {
         try {
+          const { DiscordSDK } = await import("@discord/embedded-app-sdk");
+          const sdk = new DiscordSDK(DISCORD_CLIENT_ID);
+          setDiscordSdk(sdk);
+
           await sdk.ready();
 
           // Authorize with Discord Client
