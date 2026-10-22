@@ -1,0 +1,11 @@
+# Locodle
+
+> Locodle is a free daily geography game. Each day a famous place (a city, landmark or natural wonder) is hidden on a world map, and players guess its location by clicking the map or searching for a place.
+
+After each guess, Locodle shows how far away the guess was and a temperature label, from "Freezing" (10,000 km or more) to "Fire" (under 500 km). A guess within 50 km of the hidden place wins. Guesses are unlimited, and optional hints describe the place's region and type. Everyone gets the same place on the same day (US Eastern time), and past days can be replayed.
+
+Players can play as a guest or sign in with Discord to keep stats and streaks across devices. Locodle also runs as a Discord Activity, and a Discord bot posts the daily challenge and results to servers.
+
+## Play
+
+- [Locodle](https://locodle.com/): Today's challenge, playable in the browser on desktop and mobile

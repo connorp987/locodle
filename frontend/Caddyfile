@@ -1,7 +1,7 @@
 # Custom Caddyfile for Railpack (replaces its default Node SPA Caddyfile).
 # Based on https://github.com/railwayapp/railpack/blob/main/core/providers/node/Caddyfile.template
-# Railpack still renders this as a Go template, so {{.DIST_DIR}} / {{.IndexFallback}} are filled in.
-# Only change from the default: Cache-Control headers.
+# Railpack still renders this as a Go template, so {{.DIST_DIR}} is filled in.
+# Changes from the default: Cache-Control headers, and SPA fallback limited to extensionless paths.
 
 # global options
 {
@@ -58,6 +58,15 @@
 		zstd
 	}
 
-	# match against direct against HTML file matches, folder-level index.html, and optionally fallback to root index.html
-	try_files {path} {path}.html {path}/index.html{{if .IndexFallback}} /index.html{{end}}
+	# match against direct against HTML file matches, folder-level index.html
+	try_files {path} {path}.html {path}/index.html
+
+	# SPA fallback only for extensionless paths. Missing files like /llms.txt or
+	# /.well-known/ai-catalog.json get a real 404 instead of index.html with a 200,
+	# which crawlers and AI agents would otherwise parse as the file.
+	@spa {
+		not file
+		not path_regexp \.[^/]+$
+	}
+	rewrite @spa /index.html
 }
