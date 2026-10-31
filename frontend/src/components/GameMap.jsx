@@ -17,6 +17,8 @@ import {
   createPendingMarkerIcon,
   createAnswerMarkerIcon,
   tileProviders,
+  wrapLng,
+  WORLD_COPY_OFFSETS,
 } from "../utils/mapUtils";
 import { getTemperatureLabel, formatLocationName } from "../utils/gameUtils";
 
@@ -35,26 +37,29 @@ Icon.Default.mergeOptions({
 const MapClickHandler = ({ onMapClick, tempMarker }) => {
   useMapEvents({
     click(e) {
-      onMapClick(e.latlng);
+      onMapClick(e.latlng.wrap());
     },
   });
 
   const pendingIcon = createPendingMarkerIcon();
 
-  return tempMarker ? (
-    <Marker
-      position={[tempMarker.lat, tempMarker.lng]}
-      draggable={true}
-      icon={pendingIcon}
-      eventHandlers={{
-        dragend(e) {
-          const marker = e.target;
-          const position = marker.getLatLng();
-          onMapClick(position);
-        },
-      }}
-    />
-  ) : null;
+  return tempMarker
+    ? WORLD_COPY_OFFSETS.map((offset) => (
+        <Marker
+          key={offset}
+          position={[tempMarker.lat, tempMarker.lng + offset]}
+          draggable={true}
+          icon={pendingIcon}
+          eventHandlers={{
+            dragend(e) {
+              const marker = e.target;
+              const position = marker.getLatLng();
+              onMapClick(position.wrap());
+            },
+          }}
+        />
+      ))
+    : null;
 };
 
 const GameMap = ({
@@ -104,6 +109,7 @@ const GameMap = ({
         center={center}
         zoom={zoom}
         scrollWheelZoom={true}
+        worldCopyJump={true}
         className="h-full w-full z-0"
       >
         <TileLayer
@@ -138,10 +144,10 @@ const GameMap = ({
             getTemperatureLabel(guess.distance).hex
           );
 
-          return (
+          return WORLD_COPY_OFFSETS.map((offset) => (
             <Marker
-              key={index}
-              position={[guess.lat, guess.lng]}
+              key={`${index}:${offset}`}
+              position={[guess.lat, wrapLng(guess.lng) + offset]}
               icon={numberedIcon}
             >
               <Popup>
@@ -157,48 +163,52 @@ const GameMap = ({
                 </div>
               </Popup>
             </Marker>
-          );
+          ));
         })}
 
         {/* Show answer marker when game is complete */}
-        {answer && (
-          <Marker
-            position={[answer.lat, answer.lng]}
-            icon={createAnswerMarkerIcon()}
-            zIndexOffset={1000}
-          >
-            <Popup>
-              <div className="min-w-[140px]">
-                <p className="text-xs font-semibold text-heat-found">
-                  The answer
-                </p>
-                <p className="font-semibold text-ink leading-snug">
-                  {answer.name}
-                </p>
-                <p className="text-sm text-ink-soft">{answer.country}</p>
-              </div>
-            </Popup>
-          </Marker>
-        )}
+        {answer &&
+          WORLD_COPY_OFFSETS.map((offset) => (
+            <Marker
+              key={`answer:${offset}`}
+              position={[answer.lat, wrapLng(answer.lng) + offset]}
+              icon={createAnswerMarkerIcon()}
+              zIndexOffset={1000}
+            >
+              <Popup>
+                <div className="min-w-[140px]">
+                  <p className="text-xs font-semibold text-heat-found">
+                    The answer
+                  </p>
+                  <p className="font-semibold text-ink leading-snug">
+                    {answer.name}
+                  </p>
+                  <p className="text-sm text-ink-soft">{answer.country}</p>
+                </div>
+              </Popup>
+            </Marker>
+          ))}
 
         {/* Draw lines from guesses to answer */}
         {answer &&
-          guesses.map((guess, index) => (
-            <Polyline
-              key={`line-${index}`}
-              positions={[
-                [guess.lat, guess.lng],
-                [answer.lat, answer.lng],
-              ]}
-              pathOptions={{
-                color: getTemperatureLabel(guess.distance).hex,
-                weight: 2,
-                opacity: 0.7,
-                dashArray: "2, 6",
-                lineCap: "round",
-              }}
-            />
-          ))}
+          guesses.map((guess, index) =>
+            WORLD_COPY_OFFSETS.map((offset) => (
+              <Polyline
+                key={`line-${index}:${offset}`}
+                positions={[
+                  [guess.lat, wrapLng(guess.lng) + offset],
+                  [answer.lat, wrapLng(answer.lng) + offset],
+                ]}
+                pathOptions={{
+                  color: getTemperatureLabel(guess.distance).hex,
+                  weight: 2,
+                  opacity: 0.7,
+                  dashArray: "2, 6",
+                  lineCap: "round",
+                }}
+              />
+            ))
+          )}
       </MapContainer>
 
       {/* Guess History Overlay */}

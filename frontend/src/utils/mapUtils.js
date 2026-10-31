@@ -1,4 +1,10 @@
-import { Icon } from "leaflet";
+import { Icon, Util } from "leaflet";
+
+// The map repeats east and west, so markers and lines are drawn on the world
+// either side as well. worldCopyJump keeps the view within these copies.
+export const WORLD_COPY_OFFSETS = [-360, 0, 360];
+
+export const wrapLng = (lng) => Util.wrapNum(lng, [-180, 180], true);
 
 const svgIcon = (svg, size, anchor) =>
   new Icon({
