@@ -10,6 +10,7 @@ import {
   ChevronDown,
   Lightbulb,
   BarChart3,
+  Bot,
 } from "lucide-react";
 import GameMap from "./components/GameMap";
 import GuessInputOverlay from "./components/GuessInputOverlay";
@@ -20,7 +21,7 @@ import DiscordIcon from "./components/DiscordIcon";
 import { useDiscord } from "./contexts/DiscordContext";
 import { getEasternDateString, formatDisplayDate } from "./utils/dateUtils";
 import { API_BASE_URL } from "./utils/apiUtils";
-import { getDiscordAvatarUrl } from "./utils/discordUtils";
+import { getDiscordAvatarUrl, getBotInviteUrl } from "./utils/discordUtils";
 
 const controlBtn =
   "inline-flex items-center gap-1.5 h-9 px-2.5 sm:px-3 rounded-lg text-sm font-medium text-ink bg-white hover:bg-slate-100 transition-colors";
@@ -102,7 +103,14 @@ function App() {
     logout,
     setActivityStatus,
     closeActivity,
+    openExternalLink,
   } = useDiscord();
+
+  const handleInviteBot = () => {
+    trackEvent("invite_bot_click", { in_discord: isDiscord });
+    // In the activity, preselect the server it's running in
+    openExternalLink(getBotInviteUrl(user?.guild_id));
+  };
 
   const customFetch = useCallback(
     async (url, options = {}) => {
@@ -579,6 +587,18 @@ function App() {
               >
                 <BarChart3 className="w-4 h-4 text-primary-600" />
                 <span className="hidden lg:inline">Stats</span>
+              </button>
+            )}
+
+            {user && (
+              <button
+                onClick={handleInviteBot}
+                aria-label="Add Locodle bot to your server"
+                title="Add the Locodle bot to your server, then use /join in a channel for daily results"
+                className={controlBtn}
+              >
+                <Bot className="w-4 h-4 text-[#5865F2]" />
+                <span className="hidden lg:inline">Add to server</span>
               </button>
             )}
           </div>

@@ -2,9 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { DiscordContext } from "../contexts/DiscordContext";
 import { API_BASE_URL } from "../utils/apiUtils";
 import DiscordIcon from "./DiscordIcon";
-import { getDiscordAuthUrl } from "../utils/discordUtils";
-
-const DISCORD_CLIENT_ID = "1442219897131368508";
+import { getDiscordAuthUrl, DISCORD_CLIENT_ID } from "../utils/discordUtils";
 
 // Module-level flag to prevent double code exchange in React Strict Mode
 let processedCode = null;
@@ -161,6 +159,23 @@ const DiscordActivityWrapper = ({ children }) => {
       console.error("Failed to close activity:", e);
     }
   }, [isDiscord, discordSdk]);
+
+  // Activities run in a sandboxed iframe, so links go through the SDK
+  // (Discord shows its own "leaving Discord" prompt); on the web, a new tab.
+  const openExternalLink = useCallback(
+    async (url) => {
+      if (isDiscord && discordSdk) {
+        try {
+          await discordSdk.commands.openExternalLink({ url });
+        } catch (e) {
+          console.error("Failed to open link:", e);
+        }
+      } else {
+        window.open(url, "_blank", "noopener,noreferrer");
+      }
+    },
+    [isDiscord, discordSdk]
+  );
 
   useEffect(() => {
     // Check if running in Discord - must have frame_id query param for SDK to work
@@ -364,6 +379,7 @@ const DiscordActivityWrapper = ({ children }) => {
           setActivityStatus,
           postChannelMessage,
           closeActivity,
+          openExternalLink,
         }}
       >
         {children}
@@ -386,6 +402,7 @@ const DiscordActivityWrapper = ({ children }) => {
           setActivityStatus,
           postChannelMessage,
           closeActivity,
+          openExternalLink,
         }}
       >
         {children}
@@ -407,6 +424,7 @@ const DiscordActivityWrapper = ({ children }) => {
           setActivityStatus,
           postChannelMessage,
           closeActivity,
+          openExternalLink,
         }}
       >
         <div className="min-h-screen flex items-center justify-center bg-white text-ink-soft">
@@ -450,6 +468,7 @@ const DiscordActivityWrapper = ({ children }) => {
         setActivityStatus,
         postChannelMessage,
         closeActivity,
+        openExternalLink,
       }}
     >
       {children}

@@ -10,6 +10,7 @@ export const DiscordContext = createContext({
   setActivityStatus: () => {},
   postChannelMessage: () => {},
   closeActivity: () => {},
+  openExternalLink: () => {},
 });
 
 export const useDiscord = () => useContext(DiscordContext);
