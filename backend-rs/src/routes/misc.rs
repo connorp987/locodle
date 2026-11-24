@@ -69,7 +69,8 @@ pub async fn analytics(State(app): State<AppState>, JsonBody(body): JsonBody) ->
             Json(json!({ "status": "sent" }))
         }
         Err(e) => {
-            tracing::error!("Analytics proxy error: {e}");
+            // without_url: the URL carries api_secret
+            tracing::error!("Analytics proxy error: {}", e.without_url());
             Json(json!({ "status": "error" }))
         }
     }
