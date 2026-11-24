@@ -1,0 +1,17 @@
+CREATE TABLE IF NOT EXISTS discord_users (
+  id VARCHAR(255) PRIMARY KEY,
+  username VARCHAR(255) NOT NULL,
+  avatar VARCHAR(255),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS daily_results (
+  id SERIAL PRIMARY KEY,
+  user_id VARCHAR(255) REFERENCES discord_users(id),
+  date DATE NOT NULL,
+  score INTEGER NOT NULL, -- Distance in km (lower is better)
+  guesses_count INTEGER NOT NULL,
+  won BOOLEAN DEFAULT FALSE,
+  timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(user_id, date)
+);

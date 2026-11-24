@@ -1,4 +1,8 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
+// The backend serves the production build, so the API is same-origin there.
+// In dev (vite on :3000) it's the backend on :3001. VITE_API_URL overrides.
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL ??
+  (import.meta.env.DEV ? "http://localhost:3001" : "");
 
 export function createCustomFetch(isDiscord) {
   return async (url, options = {}) => {

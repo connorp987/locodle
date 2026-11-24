@@ -11,6 +11,8 @@ build/
 .env
 .env.local
 .env.production
+.env.*
+!.env.example
 
 # IDE
 .vscode/
@@ -33,3 +35,6 @@ coverage/
 
 # Misc
 .cache/
+
+# Rust
+target/

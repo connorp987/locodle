@@ -113,7 +113,8 @@ const DiscordActivityWrapper = ({ children }) => {
       }
 
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+      // The backend verifies the player with Discord before posting
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
 
       try {
         const channelId = discordSdk.channelId;
@@ -126,6 +127,8 @@ const DiscordActivityWrapper = ({ children }) => {
           body: JSON.stringify({
             channelId,
             content: messageContent,
+            // Lets the backend check the player is in this channel's server
+            access_token: auth?.access_token,
           }),
           signal: controller.signal,
         });
@@ -135,14 +138,14 @@ const DiscordActivityWrapper = ({ children }) => {
       } catch (e) {
         clearTimeout(timeoutId);
         if (e.name === "AbortError") {
-          console.error("Post message timed out after 5 seconds");
+          console.error("Post message timed out after 10 seconds");
         } else {
           console.error("Failed to post message to channel:", e);
         }
         return false;
       }
     },
-    [isDiscord, discordSdk]
+    [isDiscord, discordSdk, auth]
   );
 
   // Close the activity
