@@ -213,7 +213,15 @@ const DiscordActivityWrapper = ({ children }) => {
             },
             body: JSON.stringify({ code }),
           });
-          const { access_token, user } = await response.json();
+          const data = await response.json().catch(() => ({}));
+          const { access_token, user } = data;
+          // Fail with the server's reason rather than letting authenticate()
+          // report a vague "No access token provided"
+          if (!response.ok || !access_token) {
+            throw new Error(
+              `Login failed (${response.status}${data.error ? `: ${data.error}` : ""})`
+            );
+          }
 
           // Authenticate with Discord Client
           const authResult = await sdk.commands.authenticate({

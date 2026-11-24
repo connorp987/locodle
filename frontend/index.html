@@ -39,7 +39,6 @@
           Object.assign(link, attrs);
           document.head.appendChild(link);
         };
-        addLink({ rel: 'preconnect', href: 'https://api.locodle.com', crossOrigin: 'anonymous' });
         addLink({ rel: 'preconnect', href: 'https://server.arcgisonline.com' });
         ['1/1', '1/2', '2/1', '2/2'].forEach((yx) => {
           addLink({
