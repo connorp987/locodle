@@ -1,241 +1,152 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Guidance for Claude Code (claude.ai/code) in this repository.
 
-## Quick Start
+## Overview
 
-### Prerequisites
-- Node.js 18+, npm, Docker, and Docker Compose
+Locodle is a daily geography guessing game (web + Discord Activity) with a Discord bot. As of Nov 2026 the backend is **Rust (`backend-rs/`)**. One binary serves the API *and* the built frontend, runs the daily jobs and handles the bot. It deploys as a single Railway service from the root `Dockerfile`.
 
-### Development Commands
+- `backend-rs/`: the backend. See `backend-rs/README.md` for env vars and test tooling.
+- `frontend/`: React 18 + Vite + Tailwind + Leaflet + Discord Embedded App SDK.
+- `backend/`: the **old Node/Fastify backend, reference only**. Nothing deploys from it; don't add features there.
 
-**Start PostgreSQL database (required first):**
-```bash
-docker-compose up -d
-```
-
-**Initialize database (first time only):**
-```bash
-cd backend && npm run init-db
-```
-
-**Backend development:**
-```bash
-cd backend
-npm install
-npm run dev
-# Runs on http://localhost:3001 with watch mode
-```
-
-**Frontend development:**
-```bash
-cd frontend
-npm install
-npm run dev
-# Runs on http://localhost:3000
-```
-
-**Linting:**
-```bash
-cd backend && npm run lint    # ESLint
-cd frontend && npm run lint   # ESLint + React hooks
-```
-
-**Building for production:**
-```bash
-cd backend && npm run start
-cd frontend && npm run build  # Output in frontend/dist/
-```
-
-### Database Scripts
+## Commands
 
 ```bash
-# Check location data integrity
-node backend/scripts/check-locations.js
+# Backend (from backend-rs/)
+cargo run                      # API on :3001 (PORT); serves ./public or STATIC_DIR if present
+cargo run -- migrate           # apply migrations/ (idempotent; same as the Railway pre-deploy)
+cargo test                     # unit tests
+cargo clippy                   # keep at zero warnings
 
-# Clear today's location (for testing)
-node backend/scripts/clear-today-location.js
+# Frontend (from frontend/)
+npm run dev                    # :3000, calls the API at http://localhost:3001
+npm run build                  # dist/
+npm run lint                   # must pass with --max-warnings 0
 
-# Connect to PostgreSQL directly
-docker exec -it locodle-postgres psql -U locodle -d locodle
-
-# Reset database (delete all data)
-docker-compose down -v && docker-compose up -d && npm run init-db
+# Full production image (repo root)
+docker build -t locodle .
+docker run -p 3001:3001 -e DATABASE_URL=... locodle
 ```
 
-## Architecture Overview
+### Local database
 
-### Full-Stack Geo-Guessing Game
+`docker-compose up -d` starts Postgres on 5432. **On this Windows machine a native Postgres service already holds 5432**, so the compose container can't be reached there. Use a separate container on 5433:
 
-Locodle is a location guessing game where users have 6 attempts to identify world landmarks/locations. The game provides distance feedback with each guess.
-
-### Tech Stack
-
-- **Frontend**: React 18 + Vite + TailwindCSS + Leaflet (maps) + Discord Embedded App SDK
-- **Backend**: Fastify + PostgreSQL + Discord.js + Node-cron
-- **Database**: PostgreSQL with Docker Compose
-- **Build**: ES Modules throughout (no CommonJS)
-
-### Core Data Flow
-
-1. **Daily Challenge Generation** (`backend/services/locationGenerator.js`):
-   - Each day, a random location is selected from the locations pool
-   - Never repeats within 30 days
-   - Stored in `today_location` table
-   - Hints are auto-generated based on location type (city/landmark/natural)
-
-2. **Game Session** (`frontend/src/App.jsx` → Backend API):
-   - User fetches daily challenge via `GET /api/daily-challenge`
-   - User submits guesses via `POST /api/guess` with coordinates
-   - Backend calculates distance, returns feedback (km/miles)
-   - Win condition: within 50km of target location
-   - Game state tracked in `game_sessions` table
-
-3. **Discord Integration**:
-   - Discord Activity: Embedded SDK runs the full game inside Discord
-   - Discord Bot: Posts daily challenges to channels (node-cron scheduler)
-   - User authentication optional (guest mode + Discord OAuth)
-
-### Backend Structure
-
-```
-backend/
-├── server.js                 # Fastify app, CORS config, route registration
-├── db/
-│   ├── connection.js        # PostgreSQL pool configuration
-│   └── init.sql             # Schema: locations, game_sessions, today_location
-├── routes/
-│   ├── challenge.js         # GET /api/daily-challenge, POST /api/guess
-│   ├── user.js              # User stats, history per game date
-│   ├── discord.js           # Discord OAuth/Activity routes
-│   ├── analytics.js         # Event tracking (Google Analytics)
-│   ├── health.js            # Health check
-│   └── tiles.js             # Map tile serving (Leaflet)
-├── services/
-│   ├── discordBot.js        # Discord bot initialization, cron scheduler
-│   └── locationGenerator.js # Daily location selection logic, LOCATION_TEMPLATES
-├── utils/
-│   ├── calculations.js      # Distance/difficulty calculations
-│   ├── geocoding.js         # Location name → coordinates lookup
-│   ├── locationUtils.js     # Location validation
-│   ├── locationTemplates.js # Location pool definitions
-│   └── discordUtils.js      # Discord message formatting
-├── scripts/
-│   ├── init-db.js
-│   ├── check-locations.js
-│   └── clear-today-location.js
-└── data/
-    └── locations.js         # Backup location data (seed data)
+```bash
+docker run -d --name locodle-pg-rs -e POSTGRES_USER=locodle -e POSTGRES_PASSWORD=locodle_dev_password \
+  -e POSTGRES_DB=locodle -p 5433:5432 postgres:16-alpine
+DATABASE_URL=postgresql://locodle:locodle_dev_password@localhost:5433/locodle cargo run -- migrate
 ```
 
-### Frontend Structure
+### Never run locally with the real bot token
 
-```
-frontend/src/
-├── App.jsx                  # Main game container, state management, date picker
-├── components/
-│   ├── GameMap.jsx          # Leaflet map, click-to-guess, visual feedback
-│   ├── GuessInput.jsx       # Search input, location suggestions (geocoding)
-│   ├── GuessInputOverlay.jsx # Overlay wrapper for guess input
-│   ├── GuessHistory.jsx     # List of guesses with distances
-│   ├── GuessHistoryOverlay.jsx
-│   ├── GameStats.jsx        # Win/loss, guesses remaining
-│   ├── HintsPanel.jsx       # Location hints display
-│   ├── GameOverModal.jsx    # Win/loss screen, replay button
-│   ├── UserStatsModal.jsx   # Stats across all game dates
-│   └── DiscordActivityWrapper.jsx # Discord Embedded App SDK integration
-├── contexts/
-│   └── DiscordContext.jsx   # useDiscord hook, auth, event tracking
-├── utils/
-│   ├── apiUtils.js          # API_BASE_URL, fetch helpers
-│   ├── gameUtils.js         # Game logic (win condition, difficulty)
-│   ├── distanceUtils.js     # km/mi conversion, formatting
-│   ├── mapUtils.js          # Map/marker utilities
-│   ├── dateUtils.js         # Eastern timezone date handling
-│   └── discordUtils.js      # Avatar URLs, Discord API calls
-└── main.jsx, index.css
-```
+`backend/.env` holds the real `DISCORD_BOT_TOKEN`. A local server with that token would register commands, connect to the gateway and **post the 9:30 ET daily summary to real channels**. Blank it (`DISCORD_BOT_TOKEN=`) or use the mocks below. Empty env values count as unset.
 
-### Database Schema
+## Backend layout (`backend-rs/src/`)
 
-**locations** table:
-- `id`, `name`, `lat`, `lng`, `country`, `hints` (JSONB), `is_active`, `created_at`
-- Unique constraint: (name, country)
+| File | Responsibility |
+| --- | --- |
+| `main.rs` | startup, `migrate` subcommand, background jobs, graceful shutdown |
+| `config.rs` | env vars (`config::var` treats empty as unset) |
+| `db.rs` | sqlx pool (max 5 connections, sslmode prefer) and embedded migrations |
+| `locations.rs` | daily location: date cache, generation, `/api/days` query |
+| `hints.rs` | location templates (`data/location_templates.json`, parsed on demand) and hint/continent generation |
+| `geocode.rs` | reverse geocoding (Nominatim, then BigDataCloud) with a 500-entry cache that shares in-flight lookups |
+| `calc.rs` | haversine distance, rhumb bearing, cardinal direction |
+| `discord.rs` | Discord REST client, completion/summary messages, server streaks, slash command handlers |
+| `gateway.rs` | gateway connection **for online presence only** (intents 0, no cache) |
+| `scheduler.rs` | daily jobs at fixed Eastern times (00:15 location pre-generation, 9:30 summary) |
+| `rate_limit.rs` | 80 req/60s per client IP (`X-Real-IP`, else last `X-Forwarded-For` hop) |
+| `static_files.rs` | serves the frontend (see "Static serving") |
+| `routes/` | `challenge.rs` (daily-challenge, guess, geocode), `user.rs` (stats, guesses), `discord.rs` (token, post-result-message, interactions), `misc.rs` (health, days, analytics, tiles) |
 
-**game_sessions** table:
-- `id`, `session_id`, `location_id`, `guesses` (JSONB array), `completed`, `won`, `game_date`, `created_at`, `updated_at`
-- Tracks one game session per user per day
+### API
 
-**today_location** table (created during init):
-- Stores the current day's challenge and metadata
+| Route | Notes |
+| --- | --- |
+| `GET /api/health`, `GET /health` | health checks |
+| `GET /api/days` | all challenge dates (`YYYY-MM-DD`) |
+| `GET /api/daily-challenge?date=` | hints for a date (default: today, Eastern). Today's location is generated on first request |
+| `POST /api/guess` | scores a guess. With `discord_user_id` it also saves to `user_guesses`/`daily_results` and posts completion messages |
+| `GET /api/geocode?lat=&lng=` | place name for a map click (the guess response returns `pendingName: true`) |
+| `GET /api/user/{id}/stats`, `GET /api/user/{id}/guesses/{date}` | player stats and history |
+| `POST /api/token` | Discord OAuth code exchange |
+| `POST /api/post-result-message` | activity "share" button. **Requires the player's `access_token`**; posts only if they're a member of the channel's server |
+| `POST /api/interactions` | Discord HTTP interactions (Ed25519-verified with `DISCORD_PUBLIC_KEY`) |
+| `POST /api/analytics` | GA4 proxy for the activity |
+| `GET /api/tiles/{z}/{x}/{y}` | map tile proxy for the activity (Discord's CSP blocks tile hosts) |
 
-## Key Implementation Details
+Unknown `/api/*` paths return a JSON 404. Rate limiting skips tiles and interactions.
 
-### Game Modes
-- **Hard mode** (default): Standard 6 guesses, no hints
-- **Easy mode**: All hints shown upfront, additional guesses tracked separately
+### Response formats the frontend depends on
 
-### Distance Calculations
-- Great Circle Distance (haversine formula) in `backend/utils/calculations.js`
-- Frontend converts to km or miles based on user preference (localStorage)
+These match what the old Node backend returned, so keep them unless you change the frontend too:
+- `recentGames[].date` is `"YYYY-MM-DDT00:00:00.000Z"`, as node-postgres serialized DATE on a UTC server.
+- In `/api/user/{id}/guesses/{date}`, `lat`, `lng` and `score` are **strings** (NUMERIC columns, selected with `::text`).
+- Guess responses omit `guess` when the request had no name (JS dropped `undefined` keys).
 
-### Discord Integration Setup
-For full features, configure in `backend/.env`:
-- `DISCORD_CLIENT_ID`: Discord app client ID
-- `DISCORD_CLIENT_SECRET`: OAuth secret
-- `DISCORD_BOT_TOKEN`: Bot token for automated daily posts
-- `FRONTEND_URL`: Frontend URL for CORS fallback
+### Static serving (replaced Caddy)
 
-The same `DISCORD_CLIENT_ID` must be hardcoded in `frontend/src/components/DiscordActivityWrapper.jsx`.
+- `/assets/*` (hashed filenames): `Cache-Control: public, max-age=31536000, immutable`. Everything else: `no-cache`, revalidated with Last-Modified.
+- Precompressed `.br`/`.gz` files (made in the Dockerfile) are served when present; otherwise responses are compressed on the fly.
+- SPA fallback to `index.html` **only for paths without an extension**, so a missing `/llms.txt` is a real 404.
+- `X-Content-Type-Options: nosniff` on every response.
 
-### Location Templates
-Add new locations in `backend/utils/locationTemplates.js`. Each entry:
-```javascript
-{
-  type: 'city|landmark|natural',
-  name: 'Location Name',
-  lat: 12.3456,
-  lng: 78.9012,
-  country: 'Country'
-}
-```
-Hints are auto-generated from type, hemisphere, and continent.
+## Database
 
-### Rate Limiting
-Backend configured with 80 requests per 60 seconds. Adjust in `server.js` if needed.
+The schema lives in `backend-rs/migrations/` (byte-identical copies of `backend/db/init.sql` and `backend/db/migrations/*`). Every script is idempotent and **runs on every deploy** (pre-deploy `/app/locodle-server migrate`). A failure in `001_init.sql` is fatal; later failures are logged and skipped.
 
-### Frontend-Backend Communication
-- In Discord Activity mode: relative URLs (SDK handles base)
-- In web mode: full URLs with `API_BASE_URL` (localhost:3001 dev, production URL in prod)
-- Both modes use the same `customFetch` wrapper in `App.jsx`
+Tables: `locations` (daily challenges, `UNIQUE(name, country)`, partial unique index on `game_date WHERE is_daily_challenge`), `discord_users`, `user_guesses`, `daily_results` (`UNIQUE(user_id, date)`), `discord_channels`, `discord_completion_messages`, `server_streaks`, and `game_sessions` (unused).
 
-## Common Development Tasks
+- Migrations 005 and 007 re-date soft-deleted duplicate `locations` rows (`is_active = false`) on every run. This is longstanding and harmless (the rows stay hidden). Don't be surprised by it in fingerprint diffs.
+- Location generation excludes every `(name, country)` already in `locations`, since the unique constraint forbids reuse. The Node version only excluded the last 30 days, so it could pick a used name and 500.
+- **The template pool (470) runs out around April 2027.** Add entries to `backend-rs/data/location_templates.json` (`type` is `city`/`landmark`/`natural`).
 
-**Adding a new location:**
-1. Add entry to `backend/utils/locationTemplates.js`
-2. Run `node backend/scripts/check-locations.js` to validate
-3. Restart backend (pick new location on next day or run `clear-today-location.js`)
+## Discord
 
-**Testing the Discord bot locally:**
-1. Set `DISCORD_BOT_TOKEN` in `.env`
-2. Invite bot to test server
-3. Bot posts daily challenge at configured cron time (editable in `discordBot.js`)
+- **Commands and buttons arrive over HTTP** at `/api/interactions`: `/join`, `/leave` and `/leaderboard` are deferred (type 5) and then the reply is edited; the `play_locodle` button responds with LAUNCH_ACTIVITY (type 12). With an Interactions Endpoint URL set, Discord sends nothing over the gateway.
+- **Posting** (completion messages, daily summary, shares) is plain REST with the bot token. Commands are registered at startup if missing.
+- **Gateway**: `gateway.rs` keeps one connection with intents 0 only so the bot shows online ("Playing Locodle"). It resumes and reconnects, and stops on fatal closes (4004 bad token, 4010–4014).
+- **Activity networking**: in Discord the frontend uses relative URLs proxied by Discord. URL Mappings must be **only `/` → `locodle.com`**. A leftover `/api` → `api.locodle.com` mapping caused "No access token provided" on launch.
+- **Bot invite**: `getBotInviteUrl()` in `frontend/src/utils/discordUtils.js` (permissions 3072 = View Channel + Send Messages). `DISCORD_CLIENT_ID` is defined once there.
+- Inside the activity, external links must go through `openExternalLink` from `useDiscord()` (SDK `openExternalLink`), not `window.open`.
 
-**Debugging game state:**
-- Check `game_sessions` table for session data
-- Frontend logs game state to console (gameUtils.js)
-- Network tab shows API responses (distance, hints, session ID)
+## Frontend notes
 
-**Changing difficulty/hints behavior:**
-- Game mode logic in `App.jsx` (lines 31-34)
-- Difficulty calculations in `backend/utils/calculations.js`
+- `API_BASE_URL` (`src/utils/apiUtils.js`): `VITE_API_URL` if set, otherwise `http://localhost:3001` in dev and `""` (same origin) in production builds. Don't reintroduce a cross-origin default.
+- `formatDate` in `src/utils/dateUtils.js` parses the date part as a local calendar date. Parsing `YYYY-MM-DD` with `new Date()` showed the previous day for US players.
+- The editor's "await has no effect" warning at `App.jsx` `handleShareAndExit` is harmless: the context default for `closeActivity` isn't async.
+- `package-lock.json` is gitignored, so Railway resolves dependency versions fresh on each build.
 
-## Notes
+## Testing tools
 
-- All code uses ES Modules (import/export), no CommonJS
-- Fastify logger is enabled by default—check terminal output for detailed logs
-- Frontend uses React hooks and context (no Redux)
-- Map tiles loaded from OpenStreetMap (Leaflet default)
-- Discord Activity SDK requires origin whitelisting in Discord dev portal
-- User sessions stored in browser localStorage; game state in PostgreSQL
-- Easy mode guess tracking is separate from standard guess count (feature added in recent commits)
+All in `backend-rs/scripts/`:
+- `parity.mjs`: same requests to two backends, diffs the JSON. Used to verify the Rust port against Node; run Node with `TZ=UTC` to match Railway.
+- `history-parity.mjs`: read-only check that every challenge day is listed, loads and is winnable, and that every player's stats and history match between two backends.
+- `mock-discord.mjs`: fake Discord REST API on :4555. Records posts at `GET /__log`. Run the server with `DISCORD_API_BASE=http://localhost:4555 DISCORD_BOT_TOKEN=test-bot-token`. `DISCORD_GATEWAY_URL` likewise points the presence connection at a fake gateway.
+
+Verified Nov 2026:
+- Node and Rust returned identical responses across all endpoints, and on 121 days of seeded history (2,231 responses).
+- `migrate` and `npm run init-db` produce identical databases.
+- Playing and reading every past day leaves the data byte-identical.
+- The Discord flows passed 29 checks against the mock; the gateway client passed 11 scenario checks.
+
+## Deployment (Railway)
+
+- Project `locodle`. Service `dependable-rebirth` (domain `locodle.com`) builds the root `Dockerfile`. Pre-deploy: `/app/locodle-server migrate`. Healthcheck: `/api/health`.
+- The runtime image is `gcr.io/distroless/cc-debian12:debug-nonroot`. The debug variant adds a ~1 MB busybox shell so Railway commands work whether or not Railway shell-wraps them. `MALLOC_ARENA_MAX=2` keeps glibc memory low.
+- Memory: about 4 MiB idle and ~17 MiB under load, versus ~180 MB for the old Node + Caddy services.
+- The Railway CLI is logged in on this machine. Read logs without linking: `railway logs -p 78335f90-d826-4822-81c4-3f19af75f99a -e production -s dependable-rebirth -n 100`.
+- Cleanup still pending: delete the old `locodle-second` (Node) service and the `api.locodle.com` DNS record.
+
+## Backlog / ideas
+
+- Serve Discord-mode map tiles through Discord URL mappings instead of the `/api/tiles` proxy.
+- Add more location templates before the pool runs out.
+- Remove `backend/` once the old Railway service is deleted. Its scripts `check-locations.js` and `clear-today-location.js` still work against the DB.
+
+## Conventions
+
+- Rust: edition 2024, no `unsafe`, `cargo clippy` clean. Queries are runtime `sqlx::query` with string literals (no compile-time DB needed). Bind dates as text and cast with `$1::date`; cast NUMERIC to `::float8`/`::text` in SQL.
+- Frontend: ES modules, React hooks and context (no Redux), Tailwind.

@@ -2,6 +2,7 @@ mod calc;
 mod config;
 mod db;
 mod discord;
+mod gateway;
 mod geocode;
 mod hints;
 mod locations;
@@ -122,6 +123,11 @@ fn start_background_jobs(app: &AppState) {
     }
     if app.config.discord_public_key.is_none() {
         tracing::warn!("No DISCORD_PUBLIC_KEY; /api/interactions (slash commands, Play button) is disabled.");
+    }
+
+    // Presence only, so the bot shows as online
+    if let Some(token) = app.config.discord_bot_token.clone() {
+        gateway::spawn(token);
     }
 
     let a = app.clone();

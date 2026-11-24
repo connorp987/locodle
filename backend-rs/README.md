@@ -49,6 +49,7 @@ docker run -p 3001:3001 -e DATABASE_URL=... locodle
 | `GA_MEASUREMENT_ID`, `GA_API_SECRET` | Analytics proxy for the Discord activity. |
 | `FRONTEND_URL` | Extra allowed CORS origin. |
 | `DISCORD_API_BASE` | Testing only: point Discord REST calls at `scripts/mock-discord.mjs`. |
+| `DISCORD_GATEWAY_URL` | Testing only: point the presence connection at a fake gateway. |
 | `RUST_LOG` | Log filter, default `info,sqlx=warn`. |
 
 ## Discord: interactions instead of the gateway
@@ -59,6 +60,11 @@ as signed HTTP requests at `/api/interactions`. To switch over, set
 `https://<domain>/api/interactions`. Once that's set Discord stops delivering
 interactions over the gateway, so the old Node bot must be shut down at the
 same time.
+
+The bot still keeps one gateway connection (`src/gateway.rs`), only so it
+shows as online ("Playing Locodle"). It subscribes to no events and caches
+nothing; it heartbeats and resumes/reconnects, and gives up on a fatal close
+such as a bad token.
 
 ## Checking against the Node backend
 

@@ -1,280 +1,118 @@
-# Locodle v2.0 🌍
+# Locodle 🌍
 
-A modern geo-location guessing game built with React and Fastify. Guess famous landmarks and locations around the world in 6 tries or less! Available as a web app and Discord Activity.
+A daily geography guessing game. Each day there's a new mystery place: guess on the map and get distance and direction hints until you find it. Play on the web at [locodle.com](https://locodle.com) or inside Discord as an Activity, with server leaderboards and streaks.
 
-## Join your Discord channel
-https://discord.com/oauth2/authorize?client_id=1442219897131368508&permissions=84992&integration_type=0&scope=bot
+## Add the bot to your Discord server
+
+https://discord.com/oauth2/authorize?client_id=1442219897131368508&scope=bot+applications.commands&permissions=3072&integration_type=0
+
+Logged-in players can also use the **Add to server** button in the game. Then run `/join` in a channel to get daily results there.
 
 ## Features
 
-- 🗺️ Interactive map with guess visualization
-- 🎯 Daily challenges with new locations
-- 💡 Helpful hints for each location
-- 📊 Real-time statistics and guess history
-- 🎨 Beautiful, modern UI with TailwindCSS
-- 📱 Responsive design
-- 🎮 Discord Activity integration - play directly in Discord
-- 🤖 Discord bot with automated daily challenges
-- 🗄️ PostgreSQL database for persistent data
+- 🗺️ Interactive map: click to guess or search by name
+- 🎯 A new location every day, plus every past day playable
+- 💡 Hard mode (distance only) and Easy mode (hints and direction arrows)
+- 📊 Per-player stats, streaks and history for Discord-logged-in players
+- 🎮 Discord Activity: play inside Discord, share results to the channel
+- 🤖 Discord bot: `/join`, `/leave`, `/leaderboard`, live completion messages, and a 9:30 AM Eastern daily summary
 
-## Tech Stack
+## Tech stack
 
-### Frontend
-- **React 18** - UI framework
-- **Vite** - Build tool and dev server
-- **TailwindCSS** - Styling
-- **Leaflet & React-Leaflet** - Interactive maps
-- **Lucide React** - Icons
-- **Discord Embedded App SDK** - Discord Activity integration
+| Part | Tech |
+| --- | --- |
+| Frontend | React 18, Vite, TailwindCSS, Leaflet, Discord Embedded App SDK |
+| Backend | Rust: axum, tokio, sqlx (Postgres), reqwest (rustls/ring) |
+| Discord | HTTP interactions + REST; a minimal gateway connection only for online presence |
+| Database | PostgreSQL |
+| Hosting | One Railway service built from the root `Dockerfile` |
 
-### Backend
-- **Fastify** - Fast and efficient Node.js web framework
-- **PostgreSQL** - Database for locations and game state
-- **Discord.js** - Discord bot integration
-- **Node-cron** - Scheduled tasks for daily challenges
-- **@fastify/cors** - Cross-origin resource sharing
-- **@fastify/rate-limit** - API rate limiting
-- **@fastify/static** - Static file serving
-- **ES Modules** - Modern JavaScript
+The Rust server (`backend-rs/`) serves both the API and the built frontend from one container. It idles at about 4 MiB of memory and stays under ~17 MiB under load. The previous setup used about 180 MB across two services: Node/Fastify plus a Caddy server for the frontend.
 
-## Getting Started
+`backend/` is the old Node backend, kept for reference only. Nothing deploys from it.
 
-### Prerequisites
-- Node.js 18+ installed
-- npm or yarn package manager
-- Docker and Docker Compose installed
+## Local development
 
-### Installation
+Prerequisites: Rust (stable), Node.js 18+, Docker.
 
-1. **Start PostgreSQL Database**
+**1. Database**
+
 ```bash
 docker-compose up -d
 ```
-This will start a PostgreSQL database on port 5432 and automatically initialize it with the schema and seed data.
 
-2. **Set up Backend Environment**
+If a native Postgres is already using port 5432 (e.g. a Windows Postgres service), run a separate container on another port instead:
+
 ```bash
-cd backend
-cp .env.example .env
-npm install
+docker run -d --name locodle-pg-rs -e POSTGRES_USER=locodle -e POSTGRES_PASSWORD=locodle_dev_password \
+  -e POSTGRES_DB=locodle -p 5433:5432 postgres:16-alpine
 ```
 
-Edit `backend/.env` and configure the following:
-- `PORT` - Backend server port (default: 3001)
-- `GA_MEASUREMENT_ID` - Google Analytics measurement ID (optional)
-- `GA_API_SECRET` - Google Analytics API secret (optional)
-- `DISCORD_CLIENT_ID` - Discord application client ID (required for Discord Activity)
-- `DISCORD_CLIENT_SECRET` - Discord application client secret (required for Discord Activity)
-- `DISCORD_BOT_TOKEN` - Discord bot token (required for Discord bot features)
+**2. Backend** (port 3001)
 
-**Note:** Discord credentials are required if you want to use the Discord Activity or bot features. For web-only usage, you can leave these blank.
-
-3. **Install Frontend Dependencies**
 ```bash
-cd frontend
-npm install
+cd backend-rs
+export DATABASE_URL=postgresql://locodle:locodle_dev_password@localhost:5432/locodle
+cargo run -- migrate     # create/update the schema (idempotent)
+cargo run                # API on http://localhost:3001
 ```
 
-### Running the Application
+**3. Frontend** (port 3000, calls the API on :3001)
 
-1. **Start the Backend Server** (Terminal 1)
-```bash
-cd backend
-npm run dev
-```
-The backend will run on `http://localhost:3001`
-
-2. **Start the Frontend Dev Server** (Terminal 2)
 ```bash
 cd frontend
+npm install
 npm run dev
 ```
-The frontend will run on `http://localhost:3000`
 
-3. **Open your browser** and navigate to `http://localhost:3000`
+⚠️ **Don't run locally with the real `DISCORD_BOT_TOKEN`.** A local server with the token schedules the daily summary and posts it to real channels. To test Discord features, use the mock described in [`backend-rs/README.md`](backend-rs/README.md).
 
-### Database Management
+**Production-like run** (one container: frontend and API on :3001):
 
-**View database logs:**
 ```bash
-docker-compose logs postgres
+docker build -t locodle .
+docker run -p 3001:3001 -e DATABASE_URL=... locodle
 ```
 
-**Stop database:**
-```bash
-docker-compose down
-```
+## Deployment (Railway)
 
-**Reset database (delete all data):**
-```bash
-docker-compose down -v
-docker-compose up -d
-```
+One service (`dependable-rebirth`, domain `locodle.com`):
 
-**Connect to database:**
-```bash
-docker exec -it locodle-postgres psql -U locodle -d locodle
-```
+| Setting | Value |
+| --- | --- |
+| Root directory | repo root |
+| Builder | Dockerfile |
+| Pre-deploy command | `/app/locodle-server migrate` |
+| Healthcheck path | `/api/health` |
 
-## How to Play
+Variables: `DATABASE_URL` (reference to the Postgres service), `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, `DISCORD_BOT_TOKEN`, `DISCORD_PUBLIC_KEY`, `GA_API_SECRET`. The full list is in [`backend-rs/README.md`](backend-rs/README.md).
 
-1. Look at the image and hints provided
-2. Search for a location using the search bar
-3. Select your guess from the dropdown suggestions
-4. See how far away you are from the actual location
-5. Keep guessing until you find it or run out of tries!
+The pre-deploy step runs the same idempotent SQL scripts on every deploy (`backend-rs/migrations/`).
 
-## Game Mechanics
+### Discord developer portal
 
-- **6 guesses maximum** per daily challenge
-- **Distance feedback** shown for each guess (km or miles)
-- **Win condition**: Guess within 50km of the actual location
-- **New challenge** every day - automatically generated from a pool of 60+ locations
-- **Hints available** to help you narrow down the location
-- **Two ways to guess**: Search by name or click on the map
+- **Activities → URL Mappings:** only the root mapping, `/` → `locodle.com`. Don't add an `/api` mapping. API calls must fall through to the root; a leftover `/api` → `api.locodle.com` mapping broke activity login ("No access token provided") after the move to one service.
+- **General Information → Interactions Endpoint URL:** `https://locodle.com/api/interactions`. Requires `DISCORD_PUBLIC_KEY` to be set first, since Discord tests the endpoint when you save.
+- **Bot:** *Public Bot* on (so others can add it) and *Requires OAuth2 Code Grant* off.
 
-## API Endpoints
+## How the game works
 
-### Backend API
+- Each day (Eastern time) a location is picked from `backend-rs/data/location_templates.json` (470 entries). Hints are generated from its type, hemisphere and continent.
+- A location is never reused: the table has `UNIQUE (name, country)`. **The pool runs out around April 2027**, so add entries to that JSON file before then.
+- A guess within 50 km wins. Score and distance are computed server-side (haversine).
+- Guests keep progress in the browser. Discord-logged-in players' guesses and results are stored, which powers stats, leaderboards and streaks.
 
-- `GET /api/health` - Health check
-- `GET /api/daily-challenge` - Get today's challenge
-- `POST /api/guess` - Submit a guess
-- `GET /api/stats/:sessionId` - Get game statistics
-
-## Project Structure
+## Project structure
 
 ```
 locodle-second/
-├── backend/
-│   ├── data/
-│   │   └── locations.js           # Location database
-│   ├── db/
-│   │   ├── migrations/            # Database migrations
-│   │   ├── connection.js          # PostgreSQL connection
-│   │   └── init.sql               # Database schema
-│   ├── scripts/
-│   │   ├── check-locations.js     # Location validation script
-│   │   ├── clear-today-location.js # Reset daily challenge
-│   │   └── init-db.js             # Database initialization
-│   ├── services/
-│   │   ├── discordBot.js          # Discord bot service
-│   │   └── locationGenerator.js   # Daily location generation
-│   ├── server.js                  # Fastify server
-│   ├── .env.example               # Environment variables template
-│   └── package.json
-├── frontend/
-│   ├── src/
-│   │   ├── components/
-│   │   │   ├── DiscordActivityWrapper.jsx  # Discord Activity integration
-│   │   │   ├── GameMap.jsx                 # Interactive map
-│   │   │   ├── GuessInput.jsx              # Search and guess input
-│   │   │   ├── GuessInputOverlay.jsx       # Overlay for guess input
-│   │   │   ├── GuessHistory.jsx            # Guess history display
-│   │   │   ├── GuessHistoryOverlay.jsx     # Overlay for guess history
-│   │   │   ├── GameStats.jsx               # Game statistics
-│   │   │   ├── HintsPanel.jsx              # Hints display
-│   │   │   ├── GameOverModal.jsx           # Game over screen
-│   │   │   └── UserStatsModal.jsx          # User statistics modal
-│   │   ├── contexts/                       # React contexts
-│   │   ├── App.jsx                         # Main app component
-│   │   ├── main.jsx                        # Entry point
-│   │   └── index.css                       # Global styles
-│   ├── public/                             # Static assets
-│   ├── index.html
-│   ├── vite.config.js
-│   ├── tailwind.config.js
-│   ├── postcss.config.js
-│   └── package.json
-├── docker-compose.yml                      # PostgreSQL container config
-└── README.md
+├── Dockerfile               # frontend build + Rust build -> one small image
+├── backend-rs/              # the backend (see backend-rs/README.md)
+│   ├── src/                 # axum server, Discord, gateway, scheduler
+│   ├── migrations/          # SQL run by `locodle-server migrate`
+│   ├── data/location_templates.json
+│   └── scripts/             # parity checks and mock Discord (testing)
+├── frontend/                # React app
+├── backend/                 # old Node backend (reference only)
+└── docker-compose.yml       # local Postgres
 ```
-
-## How Location Generation Works
-
-The game automatically generates a new random location each day from a pool of 60+ famous landmarks, cities, and natural wonders. Locations are:
-
-- **Randomly selected** each day
-- **Stored in PostgreSQL** for consistency
-- **Never repeated** within 30 days
-- **Automatically generated** - no manual intervention needed
-
-The location pool includes:
-- Major world cities (Tokyo, New York, Paris, etc.)
-- Famous landmarks (Pyramids, Stonehenge, etc.)
-- Natural wonders (Grand Canyon, Mount Everest, etc.)
-
-### Adding More Locations
-
-To expand the location pool, edit `backend/services/locationGenerator.js` and add entries to the `LOCATION_TEMPLATES` array:
-
-```javascript
-{
-  type: 'city', // or 'landmark' or 'natural'
-  name: 'Location Name',
-  lat: 12.3456,
-  lng: 78.9012,
-  country: 'Country'
-}
-```
-
-Hints are automatically generated based on the location type, hemisphere, and continent.
-
-## Discord Integration
-
-### Setting Up Discord Activity
-
-To enable the Discord Activity feature:
-
-1. Create a Discord application at [Discord Developer Portal](https://discord.com/developers/applications)
-2. Enable "Embedded App SDK" in your application settings
-3. Add your application's Client ID to `backend/.env` as `DISCORD_CLIENT_ID`
-4. Add your Client Secret to `backend/.env` as `DISCORD_CLIENT_SECRET`
-5. The same Client ID must be hardcoded in `frontend/src/components/DiscordActivityWrapper.jsx`
-
-### Setting Up Discord Bot
-
-To enable the Discord bot for automated daily challenges:
-
-1. Create a bot in your Discord application
-2. Enable necessary bot permissions (Send Messages, Embed Links)
-3. Add the bot token to `backend/.env` as `DISCORD_BOT_TOKEN`
-4. Invite the bot to your Discord server
-5. The bot will automatically post daily challenges using node-cron scheduling
-
-## Database Scripts
-
-Useful scripts for database management:
-
-```bash
-# Initialize database (run after docker-compose up)
-cd backend
-npm run init-db
-
-# Check location data validity
-node scripts/check-locations.js
-
-# Clear today's location (for testing)
-node scripts/clear-today-location.js
-```
-
-## Building for Production
-
-### Frontend
-```bash
-cd frontend
-npm run build
-```
-
-The build output will be in `frontend/dist/` and can be deployed to any static hosting service.
-
-### Backend
-The backend is ready for production as-is. Deploy to your preferred hosting platform (Heroku, Railway, Render, etc.) and ensure:
-- PostgreSQL database is provisioned
-- Environment variables are configured
-- Port is properly exposed
-
-
-## Credits
-
-Built with ❤️ for geography enthusiasts worldwide!
