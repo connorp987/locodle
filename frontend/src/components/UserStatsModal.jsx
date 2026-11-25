@@ -10,6 +10,7 @@ import { API_BASE_URL } from "../utils/apiUtils";
 import { formatDate } from "../utils/dateUtils";
 import { getDiscordAvatarUrl } from "../utils/discordUtils";
 import { getTemperatureLabel, getDirectionArrow } from "../utils/gameUtils";
+import { PlacePhoto, PlaceSummary } from "./PlaceInfo";
 
 const formatKm = (km) => `${Number(km).toLocaleString()} km`;
 const pluralGuesses = (n) => `${n} ${n === 1 ? "guess" : "guesses"}`;
@@ -160,7 +161,11 @@ const UserStatsModal = ({ user, isDiscord, onClose }) => {
         {/* Content */}
         <div ref={scrollRef} className="px-5 pb-5 pt-2 overflow-y-auto flex-1">
           {detail ? (
-            <GameDetail detail={detail} onRetry={() => loadGame(detail.game)} />
+            <GameDetail
+              detail={detail}
+              isDiscord={isDiscord}
+              onRetry={() => loadGame(detail.game)}
+            />
           ) : loading ? (
             <div className="flex items-center justify-center py-12">
               <div className="motion-safe:animate-pulse text-ink-faint">
@@ -301,7 +306,7 @@ const UserStatsModal = ({ user, isDiscord, onClose }) => {
   );
 };
 
-const GameDetail = ({ detail, onRetry }) => {
+const GameDetail = ({ detail, isDiscord, onRetry }) => {
   const { game, status, guesses, answer } = detail;
 
   if (status === "loading") {
@@ -330,27 +335,35 @@ const GameDetail = ({ detail, onRetry }) => {
 
   return (
     <div className="space-y-4">
-      {/* Result summary */}
+      {/* Result summary, with the place's photo on top when there is one */}
       <div
-        className={`rounded-xl px-4 py-3 ${
+        className={`rounded-xl overflow-hidden ${
           game.won ? "bg-green-50" : "bg-slate-50"
         }`}
       >
-        <p className="font-bold text-ink">
-          {game.won
-            ? `Found in ${pluralGuesses(game.guessCount)}`
-            : `Not found · ${pluralGuesses(game.guessCount)}`}
-        </p>
-        {answer?.name ? (
-          <p className="text-sm text-ink-soft mt-0.5">
-            The place was{" "}
-            <span className="font-semibold text-ink">{answer.name}</span>
+        <PlacePhoto
+          info={answer?.info}
+          isDiscord={isDiscord}
+          className="w-full h-36"
+        />
+        <div className="px-4 py-3">
+          <p className="font-bold text-ink">
+            {game.won
+              ? `Found in ${pluralGuesses(game.guessCount)}`
+              : `Not found · ${pluralGuesses(game.guessCount)}`}
           </p>
-        ) : (
-          <p className="text-sm text-ink-soft mt-0.5 tabular-nums">
-            Closest guess {formatKm(game.distance)} away
-          </p>
-        )}
+          {answer?.name ? (
+            <p className="text-sm text-ink-soft mt-0.5">
+              The place was{" "}
+              <span className="font-semibold text-ink">{answer.name}</span>
+            </p>
+          ) : (
+            <p className="text-sm text-ink-soft mt-0.5 tabular-nums">
+              Closest guess {formatKm(game.distance)} away
+            </p>
+          )}
+          <PlaceSummary info={answer?.info} lines={3} className="mt-2" />
+        </div>
       </div>
 
       {/* Guesses */}

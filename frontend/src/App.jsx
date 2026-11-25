@@ -10,7 +10,6 @@ import {
   ChevronDown,
   Lightbulb,
   BarChart3,
-  Bot,
 } from "lucide-react";
 import GameMap from "./components/GameMap";
 import GuessInputOverlay from "./components/GuessInputOverlay";
@@ -597,7 +596,7 @@ function App() {
                 title="Add the Locodle bot to your server, then use /join in a channel for daily results"
                 className={controlBtn}
               >
-                <Bot className="w-4 h-4 text-[#5865F2]" />
+                <DiscordIcon className="w-4 h-4 text-[#5865F2]" />
                 <span className="hidden lg:inline">Add to server</span>
               </button>
             )}
