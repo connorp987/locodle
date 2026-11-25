@@ -148,7 +148,10 @@ async fn load_guesses(app: &AppState, user_id: &str, date: &str) -> Result<Value
 
     let mut answer = Value::Null;
     if has_won && let Some(loc) = app.locations.daily(&app.db, Some(date)).await? {
-        answer = json!({ "name": loc.name, "lat": loc.lat, "lng": loc.lng });
+        answer = json!({ "name": loc.name, "lat": loc.lat, "lng": loc.lng, "country": loc.country });
+        if let Some(info) = app.place_info.get(&app.http, &loc).await {
+            answer["info"] = info;
+        }
     }
 
     Ok(json!({ "guesses": guesses, "answer": answer }))

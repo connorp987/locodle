@@ -1,15 +1,13 @@
 use std::{
     collections::{HashMap, HashSet},
-    hash::{BuildHasher, RandomState},
     sync::{Arc, Mutex},
-    time::SystemTime,
 };
 
 use serde::Serialize;
 use serde_json::Value;
 use sqlx::{PgPool, Row, postgres::PgRow, types::Json};
 
-use crate::{hints, util::eastern_date_string};
+use crate::{hints, selection, util::eastern_date_string};
 
 #[derive(Serialize)]
 pub struct Location {
@@ -118,35 +116,69 @@ pub async fn available_dates(db: &PgPool) -> Result<Vec<Option<String>>, sqlx::E
     .await
 }
 
-fn random_index(len: usize) -> usize {
-    (RandomState::new().hash_one(SystemTime::now()) % len as u64) as usize
-}
-
-async fn generate(db: &PgPool, today: &str) -> Result<Location, sqlx::Error> {
-    // `locations` has UNIQUE (name, country), so any template that has ever
-    // been used can't be inserted again. Exclude all of them. (The Node version
-    // only excluded the last 30 days, so it could pick a used name and fail
-    // the insert.) The seed "easy" locations are in the table too, so they're
-    // excluded here as well.
-    let used: HashSet<(String, String)> = sqlx::query("SELECT name, country FROM locations")
+/// Every `(name, country)` in `locations`. The table has UNIQUE (name, country),
+/// so none of these can be inserted again. (The Node version only excluded the
+/// last 30 days, so it could pick a used name and fail the insert.) The seed
+/// locations from `001_init.sql` are in the table too, so they're excluded as
+/// well.
+pub async fn used_keys(db: &PgPool) -> Result<HashSet<(String, String)>, sqlx::Error> {
+    sqlx::query("SELECT name, country FROM locations")
         .fetch_all(db)
         .await?
         .iter()
         .map(|r| Ok((r.try_get("name")?, r.try_get("country")?)))
-        .collect::<Result<_, sqlx::Error>>()?;
+        .collect()
+}
 
-    let pool: Vec<hints::Template> = hints::templates()
-        .into_iter()
+/// Recent daily challenges, newest first, for the variety rules. With
+/// `before`, only days before that date.
+pub async fn recent(
+    db: &PgPool,
+    before: Option<&str>,
+) -> Result<Vec<selection::Past>, sqlx::Error> {
+    sqlx::query(
+        "SELECT name, country, lat::float8 AS lat, lng::float8 AS lng FROM locations \
+         WHERE is_daily_challenge = true AND is_active = true AND game_date IS NOT NULL \
+         AND ($1::date IS NULL OR game_date < $1::date) \
+         ORDER BY game_date DESC LIMIT $2",
+    )
+    .bind(before)
+    .bind(selection::RECENT_LIMIT as i64)
+    .fetch_all(db)
+    .await?
+    .iter()
+    .map(|r| {
+        Ok(selection::Past {
+            name: r.try_get("name")?,
+            country: r.try_get("country")?,
+            lat: r.try_get("lat")?,
+            lng: r.try_get("lng")?,
+        })
+    })
+    .collect()
+}
+
+async fn generate(db: &PgPool, today: &str) -> Result<Location, sqlx::Error> {
+    let used = used_keys(db).await?;
+    let recent = recent(db, Some(today)).await?;
+
+    let all = hints::templates();
+    let unused: Vec<hints::Template> = all
+        .iter()
         .filter(|t| !used.contains(&(t.name.clone(), t.country.clone())))
+        .cloned()
         .collect();
 
-    tracing::info!("{} unused locations left in the pool", pool.len());
-    if pool.is_empty() {
+    tracing::info!(
+        "{} unused locations left in the pool ({})",
+        unused.len(),
+        selection::tier_counts(&unused)
+    );
+    let Some(pick) = selection::pick(&unused, &all, &recent, &mut selection::Rng::from_entropy())
+    else {
         tracing::error!("location pool exhausted: add entries to data/location_templates.json");
         return Err(sqlx::Error::RowNotFound);
-    }
-
-    let pick = &pool[random_index(pool.len())];
+    };
     let hints = hints::generate_hints(pick);
 
     let row = sqlx::query(
@@ -166,7 +198,13 @@ async fn generate(db: &PgPool, today: &str) -> Result<Location, sqlx::Error> {
     .await?;
 
     let location = Location::from_row(&row)?;
-    tracing::info!("location for {today}: {}, {}", location.name, location.country);
+    tracing::info!(
+        "location for {today}: {}, {} (tier {}, {})",
+        location.name,
+        location.country,
+        pick.tier,
+        pick.kind
+    );
     Ok(location)
 }
 

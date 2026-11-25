@@ -158,6 +158,9 @@ pub async fn guess(State(app): State<AppState>, JsonBody(body): JsonBody) -> Res
             Value::Null
         },
     });
+    if won && let Some(info) = app.place_info.get(&app.http, &location).await {
+        result["answer"]["info"] = info;
+    }
     if let Some(name) = guess.get("name").filter(|v| !v.is_null()) {
         result["guess"] = name.clone();
     }

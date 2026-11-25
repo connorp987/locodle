@@ -96,6 +96,11 @@ what the bot posts at `GET /__log`. Run the server with
 - New locations exclude every template already in `locations`. The table's
   UNIQUE (name, country) made reuse impossible, so the old 30-day window could
   pick a used name and fail the insert.
+- The pick is weighted by fame tier with variety rules (`src/selection.rs`)
+  instead of uniform. Preview it with `cargo run -- simulate [days]`; maintain
+  the pool with `scripts/locations.mjs` (see the project CLAUDE.md).
+- Winning guesses include a photo and summary from Wikipedia
+  (`src/place_info.rs`).
 - Rate limiting is per client IP (from Railway's `X-Real-IP` /
   `X-Forwarded-For`); before, every request appeared to come from the proxy.
   Tiles and Discord interactions aren't rate limited.

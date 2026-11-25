@@ -36,6 +36,7 @@ pub fn router(app: AppState) -> Router {
         .route("/api/token", post(discord::token))
         .route("/api/post-result-message", post(discord::post_result_message))
         .route("/api/analytics", post(misc::analytics))
+        .route("/api/wiki-image", get(crate::place_info::image))
         .layer(middleware::from_fn_with_state(limiter, crate::rate_limit::middleware));
 
     // Not rate limited: a map view loads dozens of tiles, and Discord's

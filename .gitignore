@@ -38,3 +38,7 @@ coverage/
 
 # Rust
 target/
+
+# Location script cache and review output
+backend-rs/scripts/.wiki-cache.json
+backend-rs/scripts/out/

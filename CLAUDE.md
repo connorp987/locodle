@@ -51,7 +51,9 @@ DATABASE_URL=postgresql://locodle:locodle_dev_password@localhost:5433/locodle ca
 | `config.rs` | env vars (`config::var` treats empty as unset) |
 | `db.rs` | sqlx pool (max 5 connections, sslmode prefer) and embedded migrations |
 | `locations.rs` | daily location: date cache, generation, `/api/days` query |
+| `selection.rs` | which template becomes today's location: fame tiers and variety rules (pure, unit-tested); `simulate` subcommand |
 | `hints.rs` | location templates (`data/location_templates.json`, parsed on demand) and hint/continent generation |
+| `place_info.rs` | post-win photo, summary and link from the place's Wikipedia article; `/api/wiki-image` proxy |
 | `geocode.rs` | reverse geocoding (Nominatim, then BigDataCloud) with a 500-entry cache that shares in-flight lookups |
 | `calc.rs` | haversine distance, rhumb bearing, cardinal direction |
 | `discord.rs` | Discord REST client, completion/summary messages, server streaks, slash command handlers |
@@ -68,7 +70,8 @@ DATABASE_URL=postgresql://locodle:locodle_dev_password@localhost:5433/locodle ca
 | `GET /api/health`, `GET /health` | health checks |
 | `GET /api/days` | all challenge dates (`YYYY-MM-DD`) |
 | `GET /api/daily-challenge?date=` | hints for a date (default: today, Eastern). Today's location is generated on first request |
-| `POST /api/guess` | scores a guess. With `discord_user_id` it also saves to `user_guesses`/`daily_results` and posts completion messages |
+| `POST /api/guess` | scores a guess. With `discord_user_id` it also saves to `user_guesses`/`daily_results` and posts completion messages. On a win, `answer.info` has `{title, summary, image, url}` from Wikipedia (omitted if there's no article or Wikipedia takes over 4 s) |
+| `GET /api/wiki-image?src=` | proxies a Wikimedia image (only `upload.`/`thumb.wikimedia.org`), because Discord's CSP blocks them |
 | `GET /api/geocode?lat=&lng=` | place name for a map click (the guess response returns `pendingName: true`) |
 | `GET /api/user/{id}/stats`, `GET /api/user/{id}/guesses/{date}` | player stats and history |
 | `POST /api/token` | Discord OAuth code exchange |
@@ -101,7 +104,24 @@ Tables: `locations` (daily challenges, `UNIQUE(name, country)`, partial unique i
 
 - Migrations 005 and 007 re-date soft-deleted duplicate `locations` rows (`is_active = false`) on every run. This is longstanding and harmless (the rows stay hidden). Don't be surprised by it in fingerprint diffs.
 - Location generation excludes every `(name, country)` already in `locations`, since the unique constraint forbids reuse. The Node version only excluded the last 30 days, so it could pick a used name and 500.
-- **The template pool (470) runs out around April 2027.** Add entries to `backend-rs/data/location_templates.json` (`type` is `city`/`landmark`/`natural`).
+- The 15 seed rows from `001_init.sql` (Eiffel Tower, Taj Mahal, ...) are never daily challenges and block their exact names forever (migrations re-insert them and 005 nulls `game_date` for `id <= 15` on every deploy). The pool covers them under other names: Paris, Agra, "Historic Sanctuary of Machu Picchu", "Stonehenge, Wiltshire", "Mutianyu Great Wall", "Mount Fuji, Honshu".
+
+## Location pool and selection
+
+`backend-rs/data/location_templates.json` has 1,248 places (Nov 2026), one per line: `type` (`city`/`landmark`/`natural`), `name`, `lat`, `lng`, `country`, `tier`, `wikidata`, `wiki` (English Wikipedia title, used for the post-win info).
+
+- **Tier** is fame within the place's type: top 35% = 1 (iconic), next 40% = 2, rest = 3. Fame = Wikipedia language count + 60-day English pageviews, as percentiles.
+- **Selection** (`selection.rs`): draw a tier (50/35/15), then pick at random among unused places that pass the variety rules: no type three days running, no continent from the last 2 days, no country from the last 30, nothing within 50 km of the last 90 days. When nothing passes, it breaks the least important rules first (in that order) and logs which.
+- `cargo run -- simulate [days]` previews picks and when each tier runs out (reads the used set from `DATABASE_URL` if set; read-only).
+- **Runway**: about 2.4 years from Nov 2026. Iconic places thin out in year 2 (~35% of days, then ~10%), so refresh yearly:
+  ```bash
+  node scripts/locations.mjs candidates   # popular places from Wikidata not yet in the pool -> scripts/out/candidates.json
+  # review, write the keepers to a JSON array, then:
+  node scripts/locations.mjs add picks.json && node scripts/locations.mjs score
+  ```
+  When curating: drop anything within 15 km of a pool city (same 50 km answer), whole islands/lakes/regions too big to have a center, serial UNESCO sites, and suburbs. Countries need an entry in `hints::continent` (a test checks); list overseas territories under their own name (Réunion, Martinique) so the continent hint is right.
+- Wikimedia throttles anonymous clients hard (a 429 locks you out for a minute); the script paces itself and caches responses in `scripts/.wiki-cache.json`.
+- City hints name the continent, not the country.
 
 ## Discord
 
@@ -143,7 +163,7 @@ Verified Nov 2026:
 ## Backlog / ideas
 
 - Serve Discord-mode map tiles through Discord URL mappings instead of the `/api/tiles` proxy.
-- Add more location templates before the pool runs out.
+- Refresh the location pool yearly (see "Location pool and selection").
 - Remove `backend/` once the old Railway service is deleted. Its scripts `check-locations.js` and `clear-today-location.js` still work against the DB.
 
 ## Conventions

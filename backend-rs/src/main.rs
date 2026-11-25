@@ -6,9 +6,11 @@ mod gateway;
 mod geocode;
 mod hints;
 mod locations;
+mod place_info;
 mod rate_limit;
 mod routes;
 mod scheduler;
+mod selection;
 mod static_files;
 mod util;
 
@@ -22,6 +24,7 @@ pub struct App {
     pub http: reqwest::Client,
     pub locations: locations::LocationCache,
     pub geocoder: Arc<geocode::Geocoder>,
+    pub place_info: place_info::Cache,
     pub discord: discord::Discord,
 }
 
@@ -51,6 +54,19 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         .install_default()
         .map_err(|_| "failed to install TLS crypto provider")?;
 
+    // `locodle-server simulate [days]`: preview upcoming location picks. Reads
+    // the used set from DATABASE_URL when set (read-only), else starts empty.
+    let mut args = std::env::args().skip(1);
+    if args.next().as_deref() == Some("simulate") {
+        let days = args.next().and_then(|d| d.parse().ok()).unwrap_or(365);
+        let db = match config::var("DATABASE_URL") {
+            Some(url) => Some(db::connect(&url).await?),
+            None => None,
+        };
+        selection::simulate(days, db.as_ref()).await?;
+        return Ok(());
+    }
+
     let config = config::Config::from_env()?;
     let db = db::connect(&config.database_url).await?;
 
@@ -76,6 +92,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
         discord: discord::Discord::new(http.clone(), config.discord_bot_token.clone()),
         locations: locations::LocationCache::default(),
         geocoder: Arc::default(),
+        place_info: place_info::Cache::default(),
         http,
         db,
         config,
